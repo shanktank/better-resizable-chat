@@ -2,7 +2,6 @@ package brc;
 
 import brc.drag.DragPreview;
 import brc.drag.DragResizer;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ScriptID;
 import net.runelite.api.events.ScriptPreFired;
@@ -26,6 +25,7 @@ import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import lombok.extern.slf4j.Slf4j;
 import com.google.inject.Provides;
 import java.awt.Dimension;
 import javax.inject.Inject;
@@ -33,8 +33,8 @@ import javax.swing.SwingUtilities;
 
 @Slf4j
 @PluginDescriptor(
-    name = "Better Resizable Chat",
-    description = "Enlarge the chat box (requires resizable display layout)",
+    name = "Better Chat Resizer",
+    description = "Resize chat (requires resizable layout)",
     tags = {"chat", "chatbox", "extend", "resize", "scale", "stretch", "width", "height", "ui"}
 )
 public class BetterResizableChatPlugin extends Plugin {
