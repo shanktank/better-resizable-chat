@@ -17,26 +17,21 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.events.PluginChanged;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.input.MouseManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.PluginInstantiationException;
-import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
-import lombok.extern.slf4j.Slf4j;
 import com.google.inject.Provides;
 import java.awt.Dimension;
 import javax.inject.Inject;
-import javax.swing.SwingUtilities;
 
-@Slf4j
 @PluginDescriptor(
-    name = "Better Chat Resizer",
-    description = "Resize chat (requires resizable layout)",
-    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui"}
+    name = "Chat Resizer",
+    description = "Resize chat box. Requires resizable layout.",
+    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better"},
+    conflicts = {"Resizable Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
@@ -47,13 +42,10 @@ public class BetterResizableChatPlugin extends Plugin {
     public static final int CHATBOX_SPRITE_H = 142;
     public static final int CHATBOX_SLOT_H = 165; // Chat box plus tabs bar
 
-    private static final String CONFLICTING_PLUGIN = "Resizable Chat"; // Naturally, thrashes with BRC; be mutex with it
-
     @Inject private Client client;
     @Inject private ClientThread clientThread;
     @Inject private BetterResizableChatConfig config;
     @Inject private ConfigManager configManager;
-    @Inject private PluginManager pluginManager;
     @Inject private KeyManager keyManager;
     @Inject private MouseManager mouseManager;
     @Inject private OverlayManager overlayManager;
@@ -86,8 +78,6 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        disablePlugin(findPlugin(CONFLICTING_PLUGIN)); // Disable other
-
         mainModals = new TopLevelModals(client);
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
@@ -117,11 +107,6 @@ public class BetterResizableChatPlugin extends Plugin {
                 client.runScript(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
             }));
         }
-    }
-
-    @Subscribe
-    private void onPluginChanged(PluginChanged event) {
-        if (event.isLoaded() && CONFLICTING_PLUGIN.equals(event.getPlugin().getName())) disablePlugin(this); // Disable self
     }
 
     @Subscribe
@@ -310,23 +295,5 @@ public class BetterResizableChatPlugin extends Plugin {
     private void revalidateChildren(Widget widget) {
         revalidateAll(widget.getStaticChildren());
         revalidateAll(widget.getDynamicChildren());
-    }
-
-    private Plugin findPlugin(String name) {
-        return pluginManager.getPlugins().stream().filter(p -> name.equals(p.getName())).findFirst().orElse(null);
-    }
-
-    private void disablePlugin(Plugin plugin) {
-        if (plugin == null) return;
-        SwingUtilities.invokeLater(() -> {
-            if (pluginManager.isPluginEnabled(plugin)) pluginManager.setPluginEnabled(plugin, false);
-            if (pluginManager.isPluginActive(plugin)) {
-                try {
-                    pluginManager.stopPlugin(plugin);
-                } catch (PluginInstantiationException ex) {
-                    log.warn("Failed to stop plugin {}", plugin.getName(), ex);
-                }
-            }
-        });
     }
 }
