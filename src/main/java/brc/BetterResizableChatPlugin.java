@@ -112,10 +112,7 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onConfigChanged(ConfigChanged event) {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
-        if (event.getKey().equals("rewrapPrivateChat"))
-            clientThread.invoke(() -> apply(true));
-        if (event.getKey().equals("bgStretchX") || event.getKey().equals("bgStretchY"))
-            clientThread.invoke(() -> bgGraphic.zoomBakedSprite(config.widthChange(), config.heightChange()));
+        if (event.getKey().equals("rewrapPrivateChat")) clientThread.invoke(() -> apply(true));
         clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> client.runScript(REWRAPS_CHAT_SCRIPT)));
     }
 
