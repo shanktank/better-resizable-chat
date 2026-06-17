@@ -24,6 +24,7 @@ public class ChatBackgroundGraphic {
     };
 
     // Chat tab bar and buttons below chat box
+    private static final int[] DEFAULT_TAB_X = {458, 396, 334, 272, 210, 148, 86};
     private static final int[] CHAT_TAB_BUTTONS = {
         InterfaceID.Chatbox.CHAT_ALL,
         InterfaceID.Chatbox.CHAT_GAME,
@@ -42,7 +43,6 @@ public class ChatBackgroundGraphic {
     private final Client client;
 
     private Widget[] borderPieces;
-    private int[] defaultTabX;
 
     ChatBackgroundGraphic(Client client) {
         this.client = client;
@@ -180,17 +180,12 @@ public class ChatBackgroundGraphic {
             if (tabs[i] == null) return; // Bail until all tabs are present
         }
 
-        if (defaultTabX == null) {
-            // Tabs are positioned at ABSOLUTE_LEFT during construction
-            for (Widget tab : tabs) if (tab.getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return;
-
-            defaultTabX = new int[tabs.length];
-            for (int i = 0; i < tabs.length; i++) defaultTabX[i] = tabs[i].getOriginalX();
-        }
+        // Tabs are positioned at ABSOLUTE_LEFT during construction
+        for (Widget tab : tabs) if (tab.getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return;
 
         // Update background graphic width, gaps between tab buttons
         controls.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
         graphic.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
-        for (int i = 0; i < tabs.length; i++) tabs[i].setOriginalX(defaultTabX[i] + dw * (tabs.length - i) / tabs.length);
+        for (int i = 0; i < tabs.length; i++) tabs[i].setOriginalX(DEFAULT_TAB_X[i] + dw * (tabs.length - i) / tabs.length);
     }
 }
