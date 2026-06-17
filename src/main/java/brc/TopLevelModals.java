@@ -8,6 +8,7 @@ import net.runelite.api.gameval.InterfaceID;
 import lombok.Getter;
 
 public class TopLevelModals {
+    // Top-level interface slots into which most overlays, such as the bank screen, are loaded
     final int MAINMODAL = InterfaceID.ToplevelPreEoc.MAINMODAL;
     final int FLOATER = InterfaceID.ToplevelPreEoc.FLOATER;
 

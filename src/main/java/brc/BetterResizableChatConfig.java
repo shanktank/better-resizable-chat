@@ -17,7 +17,7 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigSection(
         name = "Drag-resizing",
-        description = "Resize the chat by holding a key and dragging its top or right border",
+        description = "Resize the chat by holding a key and dragging its top or right border.",
         position = 100
     )
     String dragResizeSection = "Drag-resizing";
@@ -30,7 +30,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 0,
         keyName = "heightChange",
         name = "Height change",
-        description = "Add or subtract height to chat box"
+        description = "Add or subtract height to chat box."
     )
     default int heightChange() {
         return 28;
@@ -42,7 +42,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 1,
         keyName = "widthChange",
         name = "Width change",
-        description = "Add or subtract width to chat box"
+        description = "Add or subtract width to chat box."
     )
     default int widthChange() {
         return 80;
@@ -52,7 +52,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 2,
         keyName = "rewrapPrivateChat",
         name = "Adjust private split width",
-        description = "Adjust width of private messages above the chat box to match adjusted chat"
+        description = "Adjust width of private messages above the chat box to match adjusted chat."
     )
     default boolean rewrapPrivateChat() {
         return true;
@@ -64,7 +64,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 101,
         keyName = "indicatorColor",
         name = "Indicator color",
-        description = "Color of the draggable border highlight. Opacity is fixed; only the color is used",
+        description = "Color of the draggable border highlight.",
         section = dragResizeSection
     )
     default Color indicatorColor() {
@@ -75,7 +75,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 102,
         keyName = "dragModifier",
         name = "Drag modifier key",
-        description = "Hold key to drag-resize chat box",
+        description = "Hold key to drag-resize chat box.",
         section = dragResizeSection
     )
     default DragModifier.ModifierKey dragModifier() {
@@ -86,11 +86,11 @@ public interface BetterResizableChatConfig extends Config {
         position = 103,
         keyName = "liveRewrap",
         name = "Live re-wrap",
-        description = "Re-wrap chat text continuously while drag-resizing, instead of only once when the drag ends",
-        warning = "This is an expensive operation that may cause FPS reduction on lower-end machines during drag-resizing",
+        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
+                    + "Disable this option if your FPS tanks during drag-resizing.",
         section = dragResizeSection
     )
     default boolean liveRewrap() {
-        return false;
+        return true;
     }
 }
