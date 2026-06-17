@@ -4,6 +4,7 @@ import brc.drag.DragPreview;
 import brc.drag.DragResizer;
 import net.runelite.api.Client;
 import net.runelite.api.ScriptID;
+import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.ResizeableChanged;
@@ -151,6 +152,11 @@ public class BetterResizableChatPlugin extends Plugin {
     private void onScriptPreFired(ScriptPreFired event) {
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
+    }
+
+    @Subscribe
+    private void onScriptPostFired(ScriptPostFired event) {
+        if (event.getScriptId() == ScriptID.TOPLEVEL_REDRAW) apply(false); // Fires when switching tabs on Character Summary tab, resets background
     }
 
     @Subscribe
