@@ -5,7 +5,6 @@ import brc.drag.DragResizer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ScriptID;
-import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.ResizeableChanged;
@@ -42,7 +41,6 @@ public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
     private static final int RESIZES_CHAT_SCRIPT = 924;
     private static final int REWRAPS_CHAT_SCRIPT = 663;
-    private static final int CHAT_TAB_CHANGE_SCRIPT = 175;
 
     public static final int CHATBOX_SPRITE_W = 519;
     public static final int CHATBOX_SPRITE_H = 142;
@@ -153,12 +151,6 @@ public class BetterResizableChatPlugin extends Plugin {
     private void onScriptPreFired(ScriptPreFired event) {
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
-    }
-
-    @Subscribe
-    private void onScriptPostFired(ScriptPostFired event) {
-        int id = event.getScriptId();
-        if (id == ScriptID.TOPLEVEL_REDRAW || id == CHAT_TAB_CHANGE_SCRIPT) bgGraphic.zoomBakedSprite(config.widthChange(), config.heightChange());
     }
 
     @Subscribe
