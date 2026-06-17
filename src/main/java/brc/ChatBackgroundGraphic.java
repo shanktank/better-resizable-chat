@@ -34,8 +34,8 @@ public class ChatBackgroundGraphic {
         InterfaceID.Chatbox.CHAT_TRADE,
     };
 
-    private static final int BACKGROUND_STRETCH_X = 15;
-    private static final int BACKGROUND_STRETCH_Y = 30;
+    private static final int BACKGROUND_STRETCH_X = 40;
+    private static final int BACKGROUND_STRETCH_Y = 75;
 
     private static final int CORNER_BLEED_TRIM = 1;
 
