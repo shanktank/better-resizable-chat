@@ -35,7 +35,7 @@ import javax.swing.SwingUtilities;
 @PluginDescriptor(
     name = "Better Chat Resizer",
     description = "Resize chat (requires resizable layout)",
-    tags = {"chat", "chatbox", "extend", "resize", "scale", "stretch", "width", "height", "ui"}
+    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "scale", "stretch", "width", "height", "ui"}
 )
 public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
