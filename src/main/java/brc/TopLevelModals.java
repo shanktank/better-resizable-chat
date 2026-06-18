@@ -8,9 +8,15 @@ import net.runelite.api.gameval.InterfaceID;
 import lombok.Getter;
 
 public class TopLevelModals {
-    // Top-level interface slots into which most overlays, such as the bank screen, are loaded
-    final int MAINMODAL = InterfaceID.ToplevelPreEoc.MAINMODAL;
-    final int FLOATER = InterfaceID.ToplevelPreEoc.FLOATER;
+    // Top-level interface slots, per layout, into which most overlays, such as the bank screen, are loaded
+    private static final int[] MODAL_SLOTS = {
+        InterfaceID.Toplevel.MAINMODAL, InterfaceID.Toplevel.FLOATER,
+        InterfaceID.ToplevelOsrsStretch.MAINMODAL, InterfaceID.ToplevelOsrsStretch.FLOATER,
+        InterfaceID.ToplevelDisplay.MAINMODAL, InterfaceID.ToplevelDisplay.FLOATER,
+        InterfaceID.ToplevelOsm.MAINMODAL, InterfaceID.ToplevelOsm.FLOATER,
+        InterfaceID.ToplevelPreEoc.MAINMODAL, InterfaceID.ToplevelPreEoc.FLOATER,
+        InterfaceID.ToplevelSpectator.MAINMODAL, InterfaceID.ToplevelSpectator.FLOATER,
+    };
 
     private final Client client;
 
@@ -25,7 +31,8 @@ public class TopLevelModals {
         if (state != GameState.LOGGED_IN && state != GameState.LOADING) return false;
 
         HashTable<WidgetNode> componentTable = client.getComponentTable();
-        return componentTable.get(MAINMODAL) != null || componentTable.get(FLOATER) != null;
+        for (int slot : MODAL_SLOTS) if (componentTable.get(slot) != null) return true;
+        return false;
     }
 
     boolean topLevelModalOpenStateChanged() {

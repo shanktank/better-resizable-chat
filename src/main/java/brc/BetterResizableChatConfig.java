@@ -58,6 +58,16 @@ public interface BetterResizableChatConfig extends Config {
         return true;
     }
 
+    @ConfigItem(
+        position = 3,
+        keyName = "adjustHudAnchors",
+        name = "Adjust HUD snap anchors",
+        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box."
+    )
+    default boolean adjustHudAnchors() {
+        return true;
+    }
+
     // Drag-resize settings
 
     @ConfigItem(
