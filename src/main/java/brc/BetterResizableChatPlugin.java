@@ -181,6 +181,8 @@ public class BetterResizableChatPlugin extends Plugin {
                 apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 scrollKeep.restore();
+            } else {
+                apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
         }
@@ -230,9 +232,11 @@ public class BetterResizableChatPlugin extends Plugin {
 
         hudAnchors.sync(heightChange); // Vertically shift RuneLite's HUD anchors
 
-        if (!force && chatArea.getWidth() == slotW &&
+        if (!force &&
             slot.getWidth() == slotW && slot.getHeight() == slotH &&
-            universe.getWidth() == slotW && universe.getHeight() == slotH
+            universe.getWidth() == slotW && universe.getHeight() == slotH &&
+            chatArea.getWidth() == slotW &&
+            bgGraphic.tabBarMatches(widthChange)
         ) {
             bgGraphic.resizeTabBar(widthChange);
             bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
