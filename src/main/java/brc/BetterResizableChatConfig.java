@@ -68,6 +68,16 @@ public interface BetterResizableChatConfig extends Config {
         return true;
     }
 
+    @ConfigItem(
+        position = 4,
+        keyName = "ungrowForDialogs",
+        name = "Revert size during dialogs",
+        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
+    )
+    default boolean ungrowForDialogs() {
+        return false;
+    }
+
     // Drag-resize settings
 
     @ConfigItem(
