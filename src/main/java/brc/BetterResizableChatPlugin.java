@@ -223,13 +223,13 @@ public class BetterResizableChatPlugin extends Plugin {
         int heightChange = config.heightChange();
         if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
 
+        // Unshrink or ungrow for dialog interfaces
         if (dialogBoxes.isDialogOpen()) {
-            if (config.ungrowForDialogs()) { // Revert increased dimensions
+            if (widthChange < 0) widthChange = 0;
+            if (heightChange < 0) heightChange = 0;
+            if (config.ungrowForDialogs()) {
                 if (widthChange > 0) widthChange = 0;
                 if (heightChange > 0) heightChange = 0;
-            } else { // Grow reduced dimensions
-                if (widthChange < 0) widthChange = 0;
-                if (heightChange < 0) heightChange = 0;
             }
         }
 
