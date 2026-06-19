@@ -106,8 +106,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 103,
         keyName = "liveRewrap",
         name = "Live re-wrap",
-        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
-                    + "Disable this option if your FPS tanks during drag-resizing.",
+        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.",
         section = dragResizeSection
     )
     default boolean liveRewrap() {
