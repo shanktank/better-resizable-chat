@@ -32,7 +32,7 @@ import javax.inject.Inject;
 @PluginDescriptor(
     name = "Chat Resizer",
     description = "Resize chat box. Requires resizable layout.",
-    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better"},
+    tags = {"chat", "private", "message", "extend", "resize", "resizable", "resizeable", "stretch", "width", "height", "ui"},
     conflicts = {"Resizable Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
