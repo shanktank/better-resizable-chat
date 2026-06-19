@@ -174,18 +174,38 @@ public class ChatBackgroundGraphic {
         Widget graphic = client.getWidget(InterfaceID.Chatbox.CONTROLS_BACKGROUND_GRAPHIC);
         if (controls == null || graphic == null) return;
 
-        Widget[] tabs = new Widget[CHAT_TAB_BUTTONS.length];
-        for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) {
-            tabs[i] = client.getWidget(CHAT_TAB_BUTTONS[i]);
-            if (tabs[i] == null) return; // Bail until all tabs are present
-        }
-
-        // Tabs are positioned at ABSOLUTE_LEFT during construction
-        for (Widget tab : tabs) if (tab.getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return;
+        Widget[] tabs = getTabs();
+        if (tabs == null) return;
 
         // Update background graphic width, gaps between tab buttons
         controls.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
         graphic.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
-        for (int i = 0; i < tabs.length; i++) tabs[i].setOriginalX(DEFAULT_TAB_X[i] + dw * (tabs.length - i) / tabs.length);
+        for (int i = 0; i < tabs.length; i++) tabs[i].setOriginalX(tabTargetX(i, dw, tabs.length));
+    }
+
+    // Check if tab bar is already laid out for this width delta
+    boolean tabBarMatches(int dw) {
+        Widget controls = client.getWidget(InterfaceID.Chatbox.CONTROLS);
+        if (controls == null) return true;
+        Widget[] tabs = getTabs();
+        if (tabs == null) return true;
+
+        if (controls.getWidth() != BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw) return false;
+        for (int i = 0; i < tabs.length; i++) if (tabs[i].getOriginalX() != tabTargetX(i, dw, tabs.length)) return false;
+        return true;
+    }
+
+    private Widget[] getTabs() {
+        Widget[] tabs = new Widget[CHAT_TAB_BUTTONS.length];
+        for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) {
+            tabs[i] = client.getWidget(CHAT_TAB_BUTTONS[i]);
+            if (tabs[i] == null) return null; // Not all tabs present yet
+            if (tabs[i].getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return null; // ABSOLUTE_LEFT during construction
+        }
+        return tabs;
+    }
+
+    private static int tabTargetX(int i, int dw, int n) {
+        return DEFAULT_TAB_X[i] + dw * (n - i) / n;
     }
 }

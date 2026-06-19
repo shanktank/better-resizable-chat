@@ -2,13 +2,15 @@ package brc;
 
 import brc.drag.DragPreview;
 import brc.drag.DragResizer;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ScriptID;
+import net.runelite.api.events.BeforeRender;
+import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.ResizeableChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.VarbitChanged;
-import net.runelite.api.events.ResizeableChanged;
-import net.runelite.api.events.BeforeRender;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
@@ -51,6 +53,7 @@ public class BetterResizableChatPlugin extends Plugin {
     @Inject private OverlayManager overlayManager;
     @Inject private TooltipManager tooltipManager;
 
+    private RuneLiteHudAnchors hudAnchors;
     private TopLevelModals mainModals;
     private ChatBackgroundGraphic bgGraphic;
     private ChatDialogBoxes dialogBoxes;
@@ -78,6 +81,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void startUp() {
+        hudAnchors = new RuneLiteHudAnchors(client, config);
         mainModals = new TopLevelModals(client);
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
@@ -110,9 +114,19 @@ public class BetterResizableChatPlugin extends Plugin {
     }
 
     @Subscribe
+    void onCommandExecuted(CommandExecuted event) {
+        if ("testpm".equals(event.getCommand())) { // Test add a private message
+            String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q RS T U V W X Y Z";
+            if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
+            client.addChatMessage(ChatMessageType.PRIVATECHAT, "Test", message, null);
+            client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
+        }
+    }
+
+    @Subscribe
     private void onConfigChanged(ConfigChanged event) {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
-        if (event.getKey().equals("rewrapPrivateChat")) clientThread.invoke(() -> apply(true));
+        if (event.getKey().equals("rewrapPrivateChat") || event.getKey().equals("adjustHudAnchors")) clientThread.invoke(() -> apply(true));
         clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> client.runScript(REWRAPS_CHAT_SCRIPT)));
     }
 
@@ -132,6 +146,9 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onScriptPreFired(ScriptPreFired event) {
+        // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
+        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()) hudAnchors.forceNativeRendered();
+
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
     }
@@ -164,6 +181,8 @@ public class BetterResizableChatPlugin extends Plugin {
                 apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 scrollKeep.restore();
+            } else {
+                apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
         }
@@ -204,16 +223,26 @@ public class BetterResizableChatPlugin extends Plugin {
         int heightChange = config.heightChange();
         if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
 
-        boolean dialogOpen = dialogBoxes.isDialogOpen(); // Should grow
-        if (dialogOpen && widthChange < 0) widthChange = 0;
-        if (dialogOpen && heightChange < 0) heightChange = 0;
+        // Unshrink or ungrow for dialog interfaces
+        if (dialogBoxes.isDialogOpen()) {
+            if (widthChange < 0) widthChange = 0;
+            if (heightChange < 0) heightChange = 0;
+            if (config.ungrowForDialogs()) {
+                if (widthChange > 0) widthChange = 0;
+                if (heightChange > 0) heightChange = 0;
+            }
+        }
 
         int slotW = CHATBOX_SPRITE_W + widthChange;
         int slotH = CHATBOX_SLOT_H + heightChange;
 
-        if (!force && chatArea.getWidth() == slotW &&
+        hudAnchors.sync(heightChange); // Vertically shift RuneLite's HUD anchors
+
+        if (!force &&
             slot.getWidth() == slotW && slot.getHeight() == slotH &&
-            universe.getWidth() == slotW && universe.getHeight() == slotH
+            universe.getWidth() == slotW && universe.getHeight() == slotH &&
+            chatArea.getWidth() == slotW &&
+            bgGraphic.tabBarMatches(widthChange)
         ) {
             bgGraphic.resizeTabBar(widthChange);
             bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
@@ -276,6 +305,7 @@ public class BetterResizableChatPlugin extends Plugin {
         pmSplit.resizePmBox(null);
         revalidateChildren(universe);
         dialogBoxes.resetDialogPositions();
+        hudAnchors.restore();
     }
 
     private void revalidateAll(Widget[] children) {
