@@ -57,11 +57,11 @@ public class ChatDialogBoxes {
         }
     }
 
-    // I don't know any other way to tell if an input prompt (e.g. typing a private message) was just closed
-    boolean dialogJustClosed() {
+    // I don't know any other way to tell if an input prompt (e.g. typing a private message) was just opened or closed
+    boolean dialogOpenStateChanged() {
         boolean open = isDialogOpen();
-        boolean justClosed = dialogOpen && !open;
+        boolean changed = open != dialogOpen;
         dialogOpen = open;
-        return justClosed;
+        return changed;
     }
 }
