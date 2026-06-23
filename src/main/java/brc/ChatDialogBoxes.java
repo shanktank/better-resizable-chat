@@ -18,6 +18,8 @@ public class ChatDialogBoxes {
 
     private final Client client;
 
+    private boolean dialogOpen;
+
     ChatDialogBoxes(Client client) {
         this.client = client;
     }
@@ -53,5 +55,13 @@ public class ChatDialogBoxes {
             Widget dialog = client.getWidget(id);
             if (dialog != null) dialog.setForcedPosition(-1, -1);
         }
+    }
+
+    // I don't know any other way to tell if an input prompt (e.g. typing a private message) was just closed
+    boolean dialogJustClosed() {
+        boolean open = isDialogOpen();
+        boolean justClosed = dialogOpen && !open;
+        dialogOpen = open;
+        return justClosed;
     }
 }

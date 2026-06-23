@@ -160,8 +160,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
-        // Center modal was either opened or closed
-        if (mainModals.topLevelModalOpenStateChanged()) {
+        // Input prompt was just closed or center modal was just either opened or closed
+        if ((config.ungrowForDialogs() && dialogBoxes.dialogJustClosed()) || mainModals.topLevelModalOpenStateChanged()) {
             scrollKeep.withScrollPreserved(() -> { // Resize when a modal was just opened or closed
                 apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT);
