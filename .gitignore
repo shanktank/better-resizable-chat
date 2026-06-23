@@ -1,9 +1,10 @@
+# Gradle cache
 .gradle
+
+# IntelliJ IDEA
+.idea
 build
-.idea/
-.project
-.settings/
-.classpath
-nbactions.xml
-nb-configuration.xml
-nbproject/
+
+# Visual Studio Code
+.vscode
+bin

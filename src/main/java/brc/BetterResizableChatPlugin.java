@@ -32,7 +32,7 @@ import javax.inject.Inject;
 @PluginDescriptor(
     name = "Chat Resizer",
     description = "Resize chat box. Requires resizable layout.",
-    tags = {"chat", "private", "message", "extend", "resize", "resizable", "resizeable", "stretch", "width", "height", "ui"},
+    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better"},
     conflicts = {"Resizable Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
@@ -116,7 +116,7 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     void onCommandExecuted(CommandExecuted event) {
         if ("testpm".equals(event.getCommand())) { // Test add a private message
-            String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q RS T U V W X Y Z";
+            String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q R S T U V W X Y Z";
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
             client.addChatMessage(ChatMessageType.PRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
@@ -147,7 +147,7 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onScriptPreFired(ScriptPreFired event) {
         // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
-        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()) hudAnchors.forceNativeRendered();
+        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()) hudAnchors.forceStockRendered();
 
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);

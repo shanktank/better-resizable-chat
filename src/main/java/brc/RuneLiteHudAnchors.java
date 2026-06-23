@@ -12,7 +12,7 @@ public final class RuneLiteHudAnchors {
     private final BetterResizableChatConfig config;
 
     // Native MINUS reserve of each HUD container, captured once before we first override it
-    private final Map<Integer, Integer> nativeReserve = new HashMap<>();
+    private final Map<Integer, Integer> stockReserve = new HashMap<>();
 
     private boolean applied;
 
@@ -32,7 +32,7 @@ public final class RuneLiteHudAnchors {
         Widget hud = client.getWidget(id);
         if (hud == null) return;
 
-        int base = nativeReserve.computeIfAbsent(id, k -> hud.getOriginalHeight());
+        int base = stockReserve.computeIfAbsent(id, k -> hud.getOriginalHeight());
         int target = Math.max(0, base + chatHeightDelta);
         if (hud.getOriginalHeight() != target) {
             hud.setOriginalHeight(target);
@@ -42,11 +42,11 @@ public final class RuneLiteHudAnchors {
     }
 
     // Pretend we didn't move the anchors so an opening modal makes full use of available space
-    void forceNativeRendered() {
+    void forceStockRendered() {
         int id = activeFrontId();
         Widget hud = client.getWidget(id);
         if (hud == null) return;
-        Integer base = nativeReserve.get(id);
+        Integer base = stockReserve.get(id);
         if (base == null || hud.getOriginalHeight() <= base) return; // Never overrode or not shrunk; already native
         Widget parent = hud.getParent();
         if (parent == null) return;
@@ -61,7 +61,7 @@ public final class RuneLiteHudAnchors {
     }
 
     private void restore(int id) {
-        Integer base = nativeReserve.get(id);
+        Integer base = stockReserve.get(id);
         if (base == null) return; // Never overrode this container
         Widget w = client.getWidget(id);
         if (w != null && w.getOriginalHeight() != base) {

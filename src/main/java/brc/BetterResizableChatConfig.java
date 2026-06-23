@@ -58,24 +58,26 @@ public interface BetterResizableChatConfig extends Config {
         return true;
     }
 
-    @ConfigItem(
-        position = 3,
-        keyName = "adjustHudAnchors",
-        name = "Adjust HUD snap anchors",
-        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box."
-    )
-    default boolean adjustHudAnchors() {
-        return true;
-    }
-
+    
     @ConfigItem(
         position = 4,
+        keyName = "adjustHudAnchors",
+        name = "Adjust HUD snap anchors",
+        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
+                    + "EXPERIMENTAL: May cause minor issues with center modals (bank, settings, etc)."
+    )
+    default boolean adjustHudAnchors() {
+        return false;
+    }
+    
+    @ConfigItem(
+        position = 3,
         keyName = "ungrowForDialogs",
         name = "Revert size during dialogs",
         description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
     )
     default boolean ungrowForDialogs() {
-        return false;
+        return true;
     }
 
     // Drag-resize settings
@@ -106,7 +108,8 @@ public interface BetterResizableChatConfig extends Config {
         position = 103,
         keyName = "liveRewrap",
         name = "Live re-wrap",
-        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.",
+        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
+                    + "May hurt FPS during drag-resizing on slower machines, disable to improve performance.",
         section = dragResizeSection
     )
     default boolean liveRewrap() {
