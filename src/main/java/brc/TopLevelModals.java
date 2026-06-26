@@ -5,6 +5,7 @@ import net.runelite.api.GameState;
 import net.runelite.api.HashTable;
 import net.runelite.api.WidgetNode;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.Widget;
 import lombok.Getter;
 
 public class TopLevelModals {
@@ -16,6 +17,12 @@ public class TopLevelModals {
         InterfaceID.ToplevelOsm.MAINMODAL, InterfaceID.ToplevelOsm.FLOATER,
         InterfaceID.ToplevelPreEoc.MAINMODAL, InterfaceID.ToplevelPreEoc.FLOATER,
         InterfaceID.ToplevelSpectator.MAINMODAL, InterfaceID.ToplevelSpectator.FLOATER,
+    };
+
+    private static final int RESIZE_SCRIPT = 904; // onResize handler of the toplevel CONTROL widget
+    private static final int[][] CONTROL_ARG = { // Toplevel variants for resizable layout and the appropriate argument
+        { InterfaceID.ToplevelPreEoc.CONTROL,      1131 }, // 164
+        { InterfaceID.ToplevelOsrsStretch.CONTROL, 1130 }, // 161
     };
 
     private final Client client;
@@ -40,5 +47,16 @@ public class TopLevelModals {
         boolean changed = open != modalOpen;
         modalOpen = open;
         return changed;
+    }
+
+    // Re-fit the UI to current available space
+    void relayout() {
+        for (int[] ca : CONTROL_ARG) {
+            Widget control = client.getWidget(ca[0]);
+            if (control != null && !control.isHidden()) {
+                client.runScript(RESIZE_SCRIPT, control.getId(), ca[1]);
+                return;
+            }
+        }
     }
 }
