@@ -160,12 +160,11 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
-        // Input prompt was just opened or closed, or center modal was just either opened or closed
-        if ((config.ungrowForDialogs() && dialogBoxes.dialogOpenStateChanged()) || mainModals.topLevelModalOpenStateChanged()) {
-            scrollKeep.withScrollPreserved(() -> {
-                apply(false);
-                client.runScript(RESIZES_CHAT_SCRIPT);
-            });
+        // Some chat overlay just opened or closed, grow/shrink has been applied
+        if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
+            apply(false);
+            client.runScript(RESIZES_CHAT_SCRIPT);
+            scrollKeep.restore(); // Restore is non-consuming, pre-overlay snapshot drives both open and close
             return;
         }
 
@@ -185,6 +184,7 @@ public class BetterResizableChatPlugin extends Plugin {
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
+            if (!dialogBoxes.isDialogOpen()) scrollKeep.capture(); // Track latest scroll but don't overwrite if dialog open
         }
         wasDragging = dragging;
 
@@ -196,6 +196,13 @@ public class BetterResizableChatPlugin extends Plugin {
         } else {
             dragResizer.update(null);
         }
+    }
+
+    // True if temp unshrinking or growing
+    private boolean dialogAdjustsSize() {
+        int w = config.widthChange();
+        int h = config.heightChange();
+        return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
     }
 
     @SuppressWarnings("deprecation")

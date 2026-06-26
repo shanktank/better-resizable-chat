@@ -9,7 +9,7 @@ import net.runelite.api.widgets.Widget;
 public final class ChatScrollRetainer {
     private final Client client;
 
-    // y used as flag denoting presence of capture, all fields must be set or nulled together
+    // y used as presence flag; capture() sets or nulls all three together, restore() leaves them intact
     private Integer y;
     private Integer height;
     private Integer viewport;
@@ -30,22 +30,24 @@ public final class ChatScrollRetainer {
         viewport = scrollArea.getHeight();
     }
 
-    // Restore scroll position or silently no-op if chatbox isn't loaded; always safe to call, always clears snapshot
+    // Restore scroll position or silently no-op if chatbox isn't loaded, always safe to call, cleared by capture()
     void restore() {
         if (y == null) return;
         int oldY = y;
         int oldH = height;
         int oldVH = viewport;
-        y = null;
-        height = null;
-        viewport = null;
         Widget scrollArea = liveScrollArea();
         if (scrollArea == null) return;
         int newH = scrollArea.getScrollHeight();
         int newVH = scrollArea.getHeight();
         int newMax = Math.max(0, newH - newVH);
-        int distFromBottom = Math.max(0, oldH - oldY - oldVH);
-        int newScrollY = Math.max(0, Math.min(newMax, newMax - distFromBottom));
+
+        // Anchor to nearest edge, top or bottom
+        int oldMax = Math.max(0, oldH - oldVH);
+        int distFromTop = Math.max(0, Math.min(oldMax, oldY));
+        int distFromBottom = oldMax - distFromTop;
+        int newScrollY = Math.max(0, Math.min(newMax, distFromBottom <= distFromTop ? newMax - distFromBottom : distFromTop));
+
         // Set scroll position, update client trackers so subsequent BUILD_CHATBOXes don't yank position
         client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, newScrollY);
         client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, newScrollY);
