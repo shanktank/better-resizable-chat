@@ -126,8 +126,10 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onConfigChanged(ConfigChanged event) {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
-        if (event.getKey().equals("rewrapPrivateChat") || event.getKey().equals("adjustHudAnchors")) clientThread.invoke(() -> apply(true));
-        clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> client.runScript(REWRAPS_CHAT_SCRIPT)));
+        clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> {
+            apply(true);
+            client.runScript(REWRAPS_CHAT_SCRIPT);
+        }));
     }
 
     @Subscribe
