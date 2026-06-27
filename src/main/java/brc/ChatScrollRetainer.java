@@ -6,15 +6,18 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.Widget;
 
+// Keeps the chat's visual scroll location fixed across chat resizes
 public final class ChatScrollRetainer {
     private final Client client;
+    private final ChatDialogBoxes dialogBoxes;
 
     private Integer lastViewport; // Null until the chat scroll area is first seen
     private int lastWidth;
     private int distFromBottom; // Content pixels below the viewport bottom
 
-    ChatScrollRetainer(Client client) {
+    ChatScrollRetainer(Client client, ChatDialogBoxes dialogBoxes) {
         this.client = client;
+        this.dialogBoxes = dialogBoxes;
     }
 
     void sync() {
@@ -23,6 +26,7 @@ public final class ChatScrollRetainer {
             lastViewport = null; // Chat not live (hop/relog)
             return;
         }
+
         int viewport = scrollArea.getHeight();
         int width = scrollArea.getWidth();
         int contentH = scrollArea.getScrollHeight();
@@ -30,15 +34,15 @@ public final class ChatScrollRetainer {
 
         if (lastViewport != null && (viewport != lastViewport || width != lastWidth)) {
             // Chat was resized, repin to the remembered distance from the bottom
-            int max = Math.max(0, contentH - viewport);
-            int target = Math.max(0, Math.min(max, contentH - viewport - distFromBottom));
+            int target = Math.max(0, Math.min(Math.max(0, contentH - viewport), contentH - viewport - distFromBottom));
             client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, target);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, target);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
-        } else {
-            // Stable geometry/first sighting, remember where the viewer is sitting
+        } else if (!dialogBoxes.isDialogOpen()) {
+            // Remember where viewer is sitting, skipped while chat dialog is open
             distFromBottom = Math.max(0, contentH - scrollY - viewport);
         }
+
         lastViewport = viewport;
         lastWidth = width;
     }

@@ -83,7 +83,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         pmSplit = new PrivateMessageSplit(client, config);
-        scrollKeep = new ChatScrollRetainer(client);
+        scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(configManager, config);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
 
