@@ -6,64 +6,50 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.Widget;
 
+// Keeps the chat's visual scroll location fixed across chat resizes
 public final class ChatScrollRetainer {
     private final Client client;
+    private final ChatDialogBoxes dialogBoxes;
 
-    // y used as presence flag; capture() sets or nulls all three together, restore() leaves them intact
-    private Integer y;
-    private Integer height;
-    private Integer viewport;
+    private Integer lastViewport; // Null until the chat scroll area is first seen
+    private int lastWidth;
+    private int distFromBottom; // Content pixels below the viewport bottom
 
-    ChatScrollRetainer(Client client) {
+    ChatScrollRetainer(Client client, ChatDialogBoxes dialogBoxes) {
         this.client = client;
+        this.dialogBoxes = dialogBoxes;
     }
 
-    // Snapshot scroll details or silently no-op if chatbox isn't loaded; always safe to call, always clears snapshot
-    void capture() {
-        y = null;
-        height = null;
-        viewport = null;
+    void sync() {
         Widget scrollArea = liveScrollArea();
-        if (scrollArea == null) return;
-        y = scrollArea.getScrollY();
-        height = scrollArea.getScrollHeight();
-        viewport = scrollArea.getHeight();
-    }
+        if (scrollArea == null) {
+            lastViewport = null; // Chat not live (hop/relog)
+            return;
+        }
 
-    // Restore scroll position or silently no-op if chatbox isn't loaded, always safe to call, cleared by capture()
-    void restore() {
-        if (y == null) return;
-        int oldY = y;
-        int oldH = height;
-        int oldVH = viewport;
-        Widget scrollArea = liveScrollArea();
-        if (scrollArea == null) return;
-        int newH = scrollArea.getScrollHeight();
-        int newVH = scrollArea.getHeight();
-        int newMax = Math.max(0, newH - newVH);
+        int viewport = scrollArea.getHeight();
+        int width = scrollArea.getWidth();
+        int contentH = scrollArea.getScrollHeight();
+        int scrollY = scrollArea.getScrollY();
 
-        // Anchor to nearest edge, top or bottom
-        int oldMax = Math.max(0, oldH - oldVH);
-        int distFromTop = Math.max(0, Math.min(oldMax, oldY));
-        int distFromBottom = oldMax - distFromTop;
-        int newScrollY = Math.max(0, Math.min(newMax, distFromBottom <= distFromTop ? newMax - distFromBottom : distFromTop));
+        if (lastViewport != null && (viewport != lastViewport || width != lastWidth)) {
+            // Chat was resized, repin to the remembered distance from the bottom
+            int target = Math.max(0, Math.min(Math.max(0, contentH - viewport), contentH - viewport - distFromBottom));
+            client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, target);
+            client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, target);
+            client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
+        } else if (!dialogBoxes.isDialogOpen()) {
+            // Remember where viewer is sitting, skipped while chat dialog is open
+            distFromBottom = Math.max(0, contentH - scrollY - viewport);
+        }
 
-        // Set scroll position, update client trackers so subsequent BUILD_CHATBOXes don't yank position
-        client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, newScrollY);
-        client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, newScrollY);
-        client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, newH);
+        lastViewport = viewport;
+        lastWidth = width;
     }
 
     // Usable metrics guarded against mid-construction values, otherwise null
     private Widget liveScrollArea() {
         Widget scrollArea = client.getWidget(InterfaceID.Chatbox.SCROLLAREA);
         return scrollArea == null || scrollArea.getHeight() <= 0 || scrollArea.getScrollHeight() <= 0 ? null : scrollArea;
-    }
-
-    // Save scroll position, run something that might cause drift, restore saved position
-    void withScrollPreserved(Runnable body) {
-        capture();
-        body.run();
-        restore();
     }
 }

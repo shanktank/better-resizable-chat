@@ -69,14 +69,11 @@ public class BetterResizableChatPlugin extends Plugin {
     }
 
     private void onEnable() {
-        scrollKeep.withScrollPreserved(() -> {
-            apply(config.heightChange() == 0 && config.widthChange() == 0);
-            client.runScript(REWRAPS_CHAT_SCRIPT);
-        });
-    }
-
-    private void onDisable() {
-        restore();
+        scrollKeep.sync();
+        apply(config.heightChange() == 0 && config.widthChange() == 0);
+        client.runScript(REWRAPS_CHAT_SCRIPT);
+        mainModals.relayout();
+        scrollKeep.sync();
     }
 
     @Override
@@ -86,7 +83,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         pmSplit = new PrivateMessageSplit(client, config);
-        scrollKeep = new ChatScrollRetainer(client);
+        scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(configManager, config);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
 
@@ -106,10 +103,13 @@ public class BetterResizableChatPlugin extends Plugin {
         dragResizer.reset();
 
         if (client.isResized()) {
-            clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> {
-                onDisable();
+            clientThread.invoke(() -> {
+                scrollKeep.sync();
+                restore();
                 client.runScript(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
-            }));
+                mainModals.relayout();
+                scrollKeep.sync();
+            });
         }
     }
 
@@ -118,7 +118,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if ("testpm".equals(event.getCommand())) { // Test add a private message
             String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q R S T U V W X Y Z";
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
-            client.addChatMessage(ChatMessageType.PRIVATECHAT, "Test", message, null);
+            client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
         }
     }
@@ -126,10 +126,13 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onConfigChanged(ConfigChanged event) {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
-        clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> {
+        clientThread.invoke(() -> {
+            scrollKeep.sync();
             apply(true);
             client.runScript(REWRAPS_CHAT_SCRIPT);
-        }));
+            if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE_KEY) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
+            scrollKeep.sync();
+        });
     }
 
     @Subscribe
@@ -142,14 +145,14 @@ public class BetterResizableChatPlugin extends Plugin {
         if (event.isResized()) {
             clientThread.invokeLater(this::onEnable);
         } else {
-            onDisable();
+            restore();
         }
     }
 
     @Subscribe
     private void onScriptPreFired(ScriptPreFired event) {
-        // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
-        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()) hudAnchors.forceStockRendered();
+        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
+            hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
 
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
@@ -162,18 +165,16 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
-        // Some chat overlay just opened or closed, grow/shrink has been applied
-        if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
-            apply(false);
-            client.runScript(RESIZES_CHAT_SCRIPT);
-            scrollKeep.restore(); // Restore is non-consuming, pre-overlay snapshot drives both open and close
-            return;
-        }
-
-        // Chat box is being drag-resized
         boolean dragging = dragResizer.isDragging();
-        if (dragging) {
-            if (!wasDragging) scrollKeep.capture();
+        if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
+            // Chat overlay or toplevel modal just opened or closed
+            clientThread.invokeLater(() -> { // Redraw is smooth when done in client thread
+                apply(false);
+                mainModals.relayout();
+                client.runScript(RESIZES_CHAT_SCRIPT);
+                scrollKeep.sync();
+            });
+        } else if (dragging) {
             Dimension size = apply(false);
             if (config.liveRewrap() && size != null && !size.equals(dragResizer.getLastDragSize())) client.runScript(RESIZES_CHAT_SCRIPT);
             dragResizer.setLastDragSize(size);
@@ -181,14 +182,15 @@ public class BetterResizableChatPlugin extends Plugin {
             if (wasDragging) {
                 apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
-                scrollKeep.restore();
+                mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
             } else {
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
-            if (!dialogBoxes.isDialogOpen()) scrollKeep.capture(); // Track latest scroll but don't overwrite if dialog open
         }
         wasDragging = dragging;
+
+        scrollKeep.sync(); // Single preservation here
 
         // Publish the current chat rectangle for resize band management
         if (client.isResized()) {
@@ -198,23 +200,6 @@ public class BetterResizableChatPlugin extends Plugin {
         } else {
             dragResizer.update(null);
         }
-    }
-
-    // True if temp unshrinking or growing
-    private boolean dialogAdjustsSize() {
-        int w = config.widthChange();
-        int h = config.heightChange();
-        return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
-    }
-
-    @SuppressWarnings("deprecation")
-    public static void setHeight(Widget widget, int height) {
-        widget.setHeight(height);
-    }
-
-    @SuppressWarnings("deprecation")
-    public static void setWidth(Widget widget, int width) {
-        widget.setWidth(width);
     }
 
     // Apply resizes
@@ -331,5 +316,22 @@ public class BetterResizableChatPlugin extends Plugin {
     private void revalidateChildren(Widget widget) {
         revalidateAll(widget.getStaticChildren());
         revalidateAll(widget.getDynamicChildren());
+    }
+
+    // True if temp unshrinking or growing
+    private boolean dialogAdjustsSize() {
+        int w = config.widthChange();
+        int h = config.heightChange();
+        return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
+    }
+
+    @SuppressWarnings("deprecation")
+    public static void setHeight(Widget widget, int height) {
+        widget.setHeight(height);
+    }
+
+    @SuppressWarnings("deprecation")
+    public static void setWidth(Widget widget, int width) {
+        widget.setWidth(width);
     }
 }

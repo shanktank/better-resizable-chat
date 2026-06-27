@@ -24,11 +24,14 @@ public interface BetterResizableChatConfig extends Config {
 
     // General settings
 
+    String HEIGHT_CHANGE_KEY = "heightChange";
+    String WIDTH_CHANGE_KEY = "widthChange";
+
     @Units(Units.PIXELS)
     @Range(min = -142)
     @ConfigItem(
         position = 0,
-        keyName = "heightChange",
+        keyName = HEIGHT_CHANGE_KEY,
         name = "Height change",
         description = "Add or subtract height to chat box."
     )
@@ -40,7 +43,7 @@ public interface BetterResizableChatConfig extends Config {
     @Range(min = -519)
     @ConfigItem(
         position = 1,
-        keyName = "widthChange",
+        keyName = WIDTH_CHANGE_KEY,
         name = "Width change",
         description = "Add or subtract width to chat box."
     )
