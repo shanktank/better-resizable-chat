@@ -69,11 +69,11 @@ public class BetterResizableChatPlugin extends Plugin {
     }
 
     private void onEnable() {
-        scrollKeep.withScrollPreserved(() -> {
-            apply(config.heightChange() == 0 && config.widthChange() == 0);
-            client.runScript(REWRAPS_CHAT_SCRIPT);
-            mainModals.relayout();
-        });
+        scrollKeep.sync();
+        apply(config.heightChange() == 0 && config.widthChange() == 0);
+        client.runScript(REWRAPS_CHAT_SCRIPT);
+        mainModals.relayout();
+        scrollKeep.sync();
     }
 
     @Override
@@ -103,11 +103,13 @@ public class BetterResizableChatPlugin extends Plugin {
         dragResizer.reset();
 
         if (client.isResized()) {
-            clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> {
+            clientThread.invoke(() -> {
+                scrollKeep.sync();
                 restore();
                 client.runScript(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
                 mainModals.relayout();
-            }));
+                scrollKeep.sync();
+            });
         }
     }
 
@@ -124,11 +126,13 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onConfigChanged(ConfigChanged event) {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
-        clientThread.invoke(() -> scrollKeep.withScrollPreserved(() -> {
+        clientThread.invoke(() -> {
+            scrollKeep.sync();
             apply(true);
             client.runScript(REWRAPS_CHAT_SCRIPT);
             if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE_KEY) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
-        }));
+            scrollKeep.sync();
+        });
     }
 
     @Subscribe
@@ -162,21 +166,16 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
-        // Some chat overlay just opened or closed, grow/shrink has been applied
+        boolean dragging = dragResizer.isDragging();
         if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
+            // Chat overlay or toplevel modal just opened or closed
             clientThread.invokeLater(() -> { // Redraw is smooth when done in client thread
                 apply(false);
-                client.runScript(RESIZES_CHAT_SCRIPT);
-                scrollKeep.restore(); // Restore is non-consuming, pre-overlay snapshot drives both open and close
                 mainModals.relayout();
+                client.runScript(RESIZES_CHAT_SCRIPT);
+                scrollKeep.sync();
             });
-            return;
-        }
-
-        // Chat box is being drag-resized
-        boolean dragging = dragResizer.isDragging();
-        if (dragging) {
-            if (!wasDragging) scrollKeep.capture();
+        } else if (dragging) {
             Dimension size = apply(false);
             if (config.liveRewrap() && size != null && !size.equals(dragResizer.getLastDragSize())) client.runScript(RESIZES_CHAT_SCRIPT);
             dragResizer.setLastDragSize(size);
@@ -185,14 +184,14 @@ public class BetterResizableChatPlugin extends Plugin {
                 apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
-                scrollKeep.restore();
             } else {
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
-            if (!dialogBoxes.isDialogOpen()) scrollKeep.capture(); // Track latest scroll but don't overwrite if dialog open
         }
         wasDragging = dragging;
+
+        scrollKeep.sync(); // Single preservation here
 
         // Publish the current chat rectangle for resize band management
         if (client.isResized()) {

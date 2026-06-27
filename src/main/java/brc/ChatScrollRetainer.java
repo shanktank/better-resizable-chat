@@ -9,61 +9,43 @@ import net.runelite.api.widgets.Widget;
 public final class ChatScrollRetainer {
     private final Client client;
 
-    // y used as presence flag; capture() sets or nulls all three together, restore() leaves them intact
-    private Integer y;
-    private Integer height;
-    private Integer viewport;
+    private Integer lastViewport; // Null until the chat scroll area is first seen
+    private int lastWidth;
+    private int distFromBottom; // Content pixels below the viewport bottom
 
     ChatScrollRetainer(Client client) {
         this.client = client;
     }
 
-    // Snapshot scroll details or silently no-op if chatbox isn't loaded; always safe to call, always clears snapshot
-    void capture() {
-        y = null;
-        height = null;
-        viewport = null;
+    void sync() {
         Widget scrollArea = liveScrollArea();
-        if (scrollArea == null) return;
-        y = scrollArea.getScrollY();
-        height = scrollArea.getScrollHeight();
-        viewport = scrollArea.getHeight();
-    }
+        if (scrollArea == null) {
+            lastViewport = null; // Chat not live (hop/relog)
+            return;
+        }
+        int viewport = scrollArea.getHeight();
+        int width = scrollArea.getWidth();
+        int contentH = scrollArea.getScrollHeight();
+        int scrollY = scrollArea.getScrollY();
 
-    // Restore scroll position or silently no-op if chatbox isn't loaded, always safe to call, cleared by capture()
-    void restore() {
-        if (y == null) return;
-        int oldY = y;
-        int oldH = height;
-        int oldVH = viewport;
-        Widget scrollArea = liveScrollArea();
-        if (scrollArea == null) return;
-        int newH = scrollArea.getScrollHeight();
-        int newVH = scrollArea.getHeight();
-        int newMax = Math.max(0, newH - newVH);
-
-        // Anchor to nearest edge, top or bottom
-        int oldMax = Math.max(0, oldH - oldVH);
-        int distFromTop = Math.max(0, Math.min(oldMax, oldY));
-        int distFromBottom = oldMax - distFromTop;
-        int newScrollY = Math.max(0, Math.min(newMax, distFromBottom <= distFromTop ? newMax - distFromBottom : distFromTop));
-
-        // Set scroll position, update client trackers so subsequent BUILD_CHATBOXes don't yank position
-        client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, newScrollY);
-        client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, newScrollY);
-        client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, newH);
+        if (lastViewport != null && (viewport != lastViewport || width != lastWidth)) {
+            // Chat was resized, repin to the remembered distance from the bottom
+            int max = Math.max(0, contentH - viewport);
+            int target = Math.max(0, Math.min(max, contentH - viewport - distFromBottom));
+            client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, target);
+            client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, target);
+            client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
+        } else {
+            // Stable geometry/first sighting, remember where the viewer is sitting
+            distFromBottom = Math.max(0, contentH - scrollY - viewport);
+        }
+        lastViewport = viewport;
+        lastWidth = width;
     }
 
     // Usable metrics guarded against mid-construction values, otherwise null
     private Widget liveScrollArea() {
         Widget scrollArea = client.getWidget(InterfaceID.Chatbox.SCROLLAREA);
         return scrollArea == null || scrollArea.getHeight() <= 0 || scrollArea.getScrollHeight() <= 0 ? null : scrollArea;
-    }
-
-    // Save scroll position, run something that might cause drift, restore saved position
-    void withScrollPreserved(Runnable body) {
-        capture();
-        body.run();
-        restore();
     }
 }
