@@ -3,6 +3,7 @@ package brc;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetSizeMode;
 
 public class PrivateMessageSplit {
     private final Client client;
@@ -28,6 +29,8 @@ public class PrivateMessageSplit {
         if (pmChat == null) return; // Split private chat off or box not built yet
         Widget pmContainer = pmChat.getParent();
         if (pmContainer == null) return;
+
+        if (pmContainer.getWidthMode() != WidgetSizeMode.ABSOLUTE) return; // Fixed mode uses an absolute mode container
 
         if (pmContainer.getOriginalWidth() != slotW) {
             pmContainer.setOriginalWidth(slotW);
