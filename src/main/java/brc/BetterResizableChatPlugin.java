@@ -118,7 +118,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if ("testpm".equals(event.getCommand())) { // Test add a private message
             String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q R S T U V W X Y Z";
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
-            client.addChatMessage(ChatMessageType.PRIVATECHAT, "Test", message, null);
+            client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
         }
     }
@@ -151,9 +151,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onScriptPreFired(ScriptPreFired event) {
-        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.topLevelModalOpenStateChanged()) {
+        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
-        }
 
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
