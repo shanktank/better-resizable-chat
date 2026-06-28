@@ -133,7 +133,7 @@ public class BetterResizableChatPlugin extends Plugin {
             scrollKeep.sync();
             apply(true);
             client.runScript(REWRAPS_CHAT_SCRIPT);
-            if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE_KEY) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
+            if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
             scrollKeep.sync();
         });
     }
@@ -327,11 +327,8 @@ public class BetterResizableChatPlugin extends Plugin {
         widget.setWidth(width);
     }
 
-    // The drag key used to be a custom enum (Alt/Ctrl/Shift/Disable); rewrite a stored legacy value
-    // to the equivalent Keybind so existing users aren't silently reset. Idempotent: once rewritten
-    // the value is stored as "code:mods" and no longer matches a legacy name.
     private void migrateDragModifier() {
-        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, "dragModifier");
+        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
         if (legacy == null) return;
         Keybind migrated;
         switch (legacy) {
@@ -341,6 +338,6 @@ public class BetterResizableChatPlugin extends Plugin {
             case "DISABLE": migrated = Keybind.NOT_SET; break;
             default: return; // Already a Keybind, or unrecognized
         }
-        configManager.setConfiguration(BetterResizableChatConfig.GROUP, "dragModifier", migrated);
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
     }
 }

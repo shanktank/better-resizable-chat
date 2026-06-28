@@ -15,14 +15,17 @@ public interface BetterResizableChatConfig extends Config {
 
     // General settings
 
-    String HEIGHT_CHANGE_KEY = "heightChange";
-    String WIDTH_CHANGE_KEY = "widthChange";
+    String HEIGHT_CHANGE = "heightChange";
+    String WIDTH_CHANGE = "widthChange";
+    String REWRAP_PRIVATE_CHAT = "rewrapPrivateChat";
+    String UNGROW_FOR_DIALOGS = "ungrowForDialogs";
+    String ADJUST_HUD_ANCHORS = "adjustHudAnchors";
 
     @Units(Units.PIXELS)
     @Range(min = -142)
     @ConfigItem(
         position = 0,
-        keyName = HEIGHT_CHANGE_KEY,
+        keyName = HEIGHT_CHANGE,
         name = "Height change",
         description = "Add or subtract height to chat box."
     )
@@ -34,7 +37,7 @@ public interface BetterResizableChatConfig extends Config {
     @Range(min = -519)
     @ConfigItem(
         position = 1,
-        keyName = WIDTH_CHANGE_KEY,
+        keyName = WIDTH_CHANGE,
         name = "Width change",
         description = "Add or subtract width to chat box."
     )
@@ -44,7 +47,7 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 2,
-        keyName = "rewrapPrivateChat",
+        keyName = REWRAP_PRIVATE_CHAT,
         name = "Adjust private split width",
         description = "Adjust width of private messages above the chat box to match adjusted chat."
     )
@@ -54,7 +57,7 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 3,
-        keyName = "ungrowForDialogs",
+        keyName = UNGROW_FOR_DIALOGS,
         name = "Revert size during dialogs",
         description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
     )
@@ -64,16 +67,20 @@ public interface BetterResizableChatConfig extends Config {
     
     @ConfigItem(
         position = 4,
-        keyName = "adjustHudAnchors",
+        keyName = ADJUST_HUD_ANCHORS,
         name = "Adjust HUD snap anchors",
         description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
-                    + "EXPERIMENTAL: May cause minor issues with center modals (bank, settings, etc)."
+                    + "EXPERIMENTAL: MAY CAUSE MINOR ISSUES WITH CENTER MODALS (bank, settings, etc)."
     )
     default boolean adjustHudAnchors() {
         return false;
     }
 
     // Drag-resize settings
+
+    String INDICATOR_COLOR = "indicatorColor";
+    String DRAG_MODIFIER = "dragModifier";
+    String LIVE_REWRAP = "liveRewrap";
 
     @ConfigSection(
         name = "Drag-resizing",
@@ -84,7 +91,7 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 101,
-        keyName = "indicatorColor",
+        keyName = INDICATOR_COLOR,
         name = "Indicator color",
         description = "Color of the draggable border highlight.",
         section = dragResizeSection
@@ -95,9 +102,9 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 102,
-        keyName = "dragModifier",
+        keyName = DRAG_MODIFIER,
         name = "Drag key",
-        description = "Hold to drag-resize the chat box. Unset to disable the gesture.",
+        description = "Hold to drag-resize the chat box. Unset to disable.",
         section = dragResizeSection
     )
     default Keybind dragModifier() {
@@ -106,7 +113,7 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 103,
-        keyName = "liveRewrap",
+        keyName = LIVE_REWRAP,
         name = "Live re-wrap",
         description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
                     + "May hurt FPS during drag-resizing on slower machines, disable to improve performance.",
