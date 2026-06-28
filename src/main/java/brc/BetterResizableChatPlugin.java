@@ -17,6 +17,7 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.input.KeyManager;
@@ -78,16 +79,18 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void startUp() {
+        migrateDragModifier();
+
         hudAnchors = new RuneLiteHudAnchors(client, config);
         mainModals = new TopLevelModals(client);
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         pmSplit = new PrivateMessageSplit(client, config);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
-        dragResizer = new DragResizer(configManager, config);
+        dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
 
-        keyManager.registerKeyListener(dragResizer);
+        keyManager.registerKeyListener(dragResizer.getKeyListener());
         mouseManager.registerMouseListener(dragResizer);
         overlayManager.add(dragPreview);
 
@@ -96,7 +99,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void shutDown() {
-        keyManager.unregisterKeyListener(dragResizer);
+        keyManager.unregisterKeyListener(dragResizer.getKeyListener());
         mouseManager.unregisterMouseListener(dragResizer);
         overlayManager.remove(dragPreview);
 
@@ -322,5 +325,22 @@ public class BetterResizableChatPlugin extends Plugin {
     @SuppressWarnings("deprecation")
     public static void setWidth(Widget widget, int width) {
         widget.setWidth(width);
+    }
+
+    // The drag key used to be a custom enum (Alt/Ctrl/Shift/Disable); rewrite a stored legacy value
+    // to the equivalent Keybind so existing users aren't silently reset. Idempotent: once rewritten
+    // the value is stored as "code:mods" and no longer matches a legacy name.
+    private void migrateDragModifier() {
+        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, "dragModifier");
+        if (legacy == null) return;
+        Keybind migrated;
+        switch (legacy) {
+            case "ALT": migrated = Keybind.ALT; break;
+            case "CTRL": migrated = Keybind.CTRL; break;
+            case "SHIFT": migrated = Keybind.SHIFT; break;
+            case "DISABLE": migrated = Keybind.NOT_SET; break;
+            default: return; // Already a Keybind, or unrecognized
+        }
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, "dragModifier", migrated);
     }
 }

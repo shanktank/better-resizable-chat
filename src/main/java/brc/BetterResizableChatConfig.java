@@ -1,10 +1,10 @@
 package brc;
 
-import brc.drag.DragModifier;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.config.Range;
 import net.runelite.client.config.Units;
 import java.awt.Color;
@@ -96,12 +96,12 @@ public interface BetterResizableChatConfig extends Config {
     @ConfigItem(
         position = 102,
         keyName = "dragModifier",
-        name = "Drag modifier key",
-        description = "Hold key to drag-resize chat box.",
+        name = "Drag key",
+        description = "Hold to drag-resize the chat box. Unset to disable the gesture.",
         section = dragResizeSection
     )
-    default DragModifier.ModifierKey dragModifier() {
-        return DragModifier.ModifierKey.CTRL;
+    default Keybind dragModifier() {
+        return Keybind.CTRL;
     }
 
     @ConfigItem(
