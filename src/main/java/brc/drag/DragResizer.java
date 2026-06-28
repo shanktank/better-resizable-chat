@@ -157,4 +157,17 @@ public final class DragResizer extends MouseAdapter {
     static Rectangle rightBand(Rectangle b, int grab) {
         return new Rectangle(b.x + b.width - grab - RIGHT_BAND_SHIFT, b.y, grab + 1, b.height + grab);
     }
+
+    public void migrateDragModifier() {
+        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
+        if (legacy == null) return;
+        Keybind migrated;
+        switch (legacy) {
+            case "ALT": migrated = Keybind.ALT; break;
+            case "CTRL": migrated = Keybind.CTRL; break;
+            case "SHIFT": migrated = Keybind.SHIFT; break;
+            default: migrated = Keybind.NOT_SET;
+        }
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
+    }
 }

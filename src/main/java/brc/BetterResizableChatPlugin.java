@@ -17,7 +17,6 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
-import net.runelite.client.config.Keybind;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.input.KeyManager;
@@ -79,8 +78,6 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        migrateDragModifier();
-
         hudAnchors = new RuneLiteHudAnchors(client, config);
         mainModals = new TopLevelModals(client);
         bgGraphic = new ChatBackgroundGraphic(client);
@@ -90,6 +87,7 @@ public class BetterResizableChatPlugin extends Plugin {
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
 
+        dragResizer.migrateDragModifier();
         keyManager.registerKeyListener(dragResizer.getKeyListener());
         mouseManager.registerMouseListener(dragResizer);
         overlayManager.add(dragPreview);
@@ -312,8 +310,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
     // True if temp unshrinking or growing
     private boolean dialogAdjustsSize() {
-        int w = config.widthChange();
-        int h = config.heightChange();
+        int w = config.widthChange(), h = config.heightChange();
         return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
     }
 
@@ -325,19 +322,5 @@ public class BetterResizableChatPlugin extends Plugin {
     @SuppressWarnings("deprecation")
     public static void setWidth(Widget widget, int width) {
         widget.setWidth(width);
-    }
-
-    private void migrateDragModifier() {
-        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
-        if (legacy == null) return;
-        Keybind migrated;
-        switch (legacy) {
-            case "ALT": migrated = Keybind.ALT; break;
-            case "CTRL": migrated = Keybind.CTRL; break;
-            case "SHIFT": migrated = Keybind.SHIFT; break;
-            case "DISABLE": migrated = Keybind.NOT_SET; break;
-            default: return; // Already a Keybind, or unrecognized
-        }
-        configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
     }
 }
