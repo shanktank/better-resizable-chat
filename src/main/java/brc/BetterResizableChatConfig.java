@@ -13,15 +13,6 @@ import java.awt.Color;
 public interface BetterResizableChatConfig extends Config {
     String GROUP = "betterresizablechat";
 
-    // Sections
-
-    @ConfigSection(
-        name = "Drag-resizing",
-        description = "Resize the chat by holding a key and dragging its top or right border.",
-        position = 100
-    )
-    String dragResizeSection = "Drag-resizing";
-
     // General settings
 
     String HEIGHT_CHANGE_KEY = "heightChange";
@@ -61,6 +52,15 @@ public interface BetterResizableChatConfig extends Config {
         return true;
     }
 
+    @ConfigItem(
+        position = 3,
+        keyName = "ungrowForDialogs",
+        name = "Revert size during dialogs",
+        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
+    )
+    default boolean ungrowForDialogs() {
+        return true;
+    }
     
     @ConfigItem(
         position = 4,
@@ -72,18 +72,15 @@ public interface BetterResizableChatConfig extends Config {
     default boolean adjustHudAnchors() {
         return false;
     }
-    
-    @ConfigItem(
-        position = 3,
-        keyName = "ungrowForDialogs",
-        name = "Revert size during dialogs",
-        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
-    )
-    default boolean ungrowForDialogs() {
-        return true;
-    }
 
     // Drag-resize settings
+
+    @ConfigSection(
+        name = "Drag-resizing",
+        description = "Resize the chat by holding a key and dragging its top or right border.",
+        position = 100
+    )
+    String dragResizeSection = "Drag-resizing";
 
     @ConfigItem(
         position = 101,

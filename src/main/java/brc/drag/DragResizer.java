@@ -22,7 +22,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
 
     @Getter private volatile Rectangle bounds; // Current chat rectangle, published from update on the client thread
     @Getter private volatile Point pointer; // Last known cursor position in canvas space, published from mouse callbacks
-    private volatile boolean modifierHeld; // Written from the key callbacks (AWT thread), read by the overlay (client thread).
+    private volatile boolean modifierHeld; // Written from the key callbacks (AWT thread), read by the overlay (client thread)
 
     @Getter @Setter private Dimension lastDragSize; // Chat size from the previous drag frame; null while not dragging
     @Getter private volatile boolean dragging; // True while a border drag is in progress
@@ -58,7 +58,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
 
     @Override
     public void keyReleased(KeyEvent e) {
-        // On the modifier key's own release its flag is already cleared in the event, so matches() returns false here.
+        // On the modifier key's own release its flag is already cleared in the event, so matches() returns false here
         modifierHeld = config.dragModifier().matches(e);
     }
 
@@ -69,7 +69,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
 
     @Override
     public MouseEvent mousePressed(MouseEvent e) {
-        if (dragging || !config.dragModifier().matches(e)) return e; // Matches() is false for DISABLE, so that's covered
+        if (dragging || !config.dragModifier().matches(e)) return e;
 
         Rectangle b = bounds;
         if (b == null) return e;
@@ -86,6 +86,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
         // Take live config as baseline so ungrabbed/unchanged axis is treated as no-op
         startExtraW = config.widthChange();
         startExtraH = config.heightChange();
+
         e.consume();
         return e;
     }
@@ -157,7 +158,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
     boolean isSizeReadoutActive() {
         if (dragging) return true;
         if (!modifierActive()) return false;
-        return bounds != null && pointer != null && topBand(bounds, BORDER_GRAB).contains(pointer) || rightBand(bounds, BORDER_GRAB).contains(pointer);
+        return bounds != null && pointer != null && (topBand(bounds, BORDER_GRAB).contains(pointer) || rightBand(bounds, BORDER_GRAB).contains(pointer));
     }
 
     static Rectangle topBand(Rectangle b, int grab) {

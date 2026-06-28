@@ -70,8 +70,7 @@ public class ChatBackgroundGraphic {
         body.setSpriteTiling(false);
 
         // Trim the transparent corner pixels off the background parchment
-        background.setOriginalWidth(CORNER_BLEED_TRIM);
-        background.setOriginalHeight(CORNER_BLEED_TRIM);
+        background.setSize(CORNER_BLEED_TRIM, CORNER_BLEED_TRIM);
         background.setForcedPosition(0, CORNER_BLEED_TRIM);
         background.revalidate();
     }
@@ -82,8 +81,7 @@ public class ChatBackgroundGraphic {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background != null) {
             // Revert corner bleed adjustment
-            background.setOriginalWidth(0);
-            background.setOriginalHeight(0);
+            background.setSize(0, 0);
             background.setForcedPosition(-1, -1);
             background.revalidate();
 
@@ -130,8 +128,7 @@ public class ChatBackgroundGraphic {
         for (int i = 0; i < rects.length; i++) {
             borderPieces[i].setOriginalX(rects[i][0]);
             borderPieces[i].setOriginalY(rects[i][1]);
-            borderPieces[i].setOriginalWidth(rects[i][2]);
-            borderPieces[i].setOriginalHeight(rects[i][3]);
+            borderPieces[i].setSize(rects[i][2], rects[i][3]);
             borderPieces[i].revalidate();
         }
     }

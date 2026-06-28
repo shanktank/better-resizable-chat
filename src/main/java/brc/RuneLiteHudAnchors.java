@@ -38,6 +38,7 @@ public final class RuneLiteHudAnchors {
             hud.setOriginalHeight(target);
             hud.revalidate();
         }
+
         applied = true;
     }
 

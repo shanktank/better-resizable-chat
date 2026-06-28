@@ -8,3 +8,6 @@ build
 # Visual Studio Code
 .vscode
 bin
+
+# Misc
+*.log

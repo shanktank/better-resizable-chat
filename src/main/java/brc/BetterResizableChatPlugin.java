@@ -137,7 +137,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onVarbitChanged(VarbitChanged event) {
-        if (client.getVarbitValue(VarbitID.CHATBOX_TRANSPARENCY) == 1) bgGraphic.destroyBorder();
+        if (event.getVarbitId() == VarbitID.CHATBOX_TRANSPARENCY && event.getValue() == 1) bgGraphic.destroyBorder();
     }
 
     @Subscribe
@@ -179,12 +179,10 @@ public class BetterResizableChatPlugin extends Plugin {
             if (config.liveRewrap() && size != null && !size.equals(dragResizer.getLastDragSize())) client.runScript(RESIZES_CHAT_SCRIPT);
             dragResizer.setLastDragSize(size);
         } else {
+            apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             if (wasDragging) {
-                apply(false);
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
-            } else {
-                apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             }
             dragResizer.setLastDragSize(null);
         }
@@ -246,15 +244,11 @@ public class BetterResizableChatPlugin extends Plugin {
         }
 
         // Resize the toplevel chat slot, propagates to message layer and CHATAREA's height
-        slot.setOriginalWidth(slotW);
-        slot.setOriginalHeight(slotH);
+        slot.setSize(slotW, slotH);
         slot.revalidate();
 
         // Universe's minus fill resolves against client root, pin as absolute
-        universe.setWidthMode(WidgetSizeMode.ABSOLUTE);
-        universe.setHeightMode(WidgetSizeMode.ABSOLUTE);
-        universe.setOriginalWidth(slotW);
-        universe.setOriginalHeight(slotH);
+        universe.setSize(slotW, slotH, WidgetSizeMode.ABSOLUTE, WidgetSizeMode.ABSOLUTE);
         universe.setForcedPosition(0, 0);
         universe.revalidate();
 
@@ -277,16 +271,12 @@ public class BetterResizableChatPlugin extends Plugin {
 
         Widget slot = universe.getParent();
         if (slot != null) {
-            slot.setOriginalWidth(CHATBOX_SPRITE_W);
-            slot.setOriginalHeight(CHATBOX_SLOT_H);
+            slot.setSize(CHATBOX_SPRITE_W, CHATBOX_SLOT_H);
             slot.setForcedPosition(-1, -1);
             slot.revalidate();
         }
 
-        universe.setWidthMode(WidgetSizeMode.MINUS);
-        universe.setHeightMode(WidgetSizeMode.MINUS);
-        universe.setOriginalWidth(0);
-        universe.setOriginalHeight(0);
+        universe.setSize(0, 0, WidgetSizeMode.MINUS, WidgetSizeMode.MINUS);
         universe.setForcedPosition(-1, -1);
         universe.revalidate();
 
@@ -304,7 +294,6 @@ public class BetterResizableChatPlugin extends Plugin {
 
     private void revalidateAll(Widget[] children) {
         if (children == null) return;
-
         for (Widget child : children) {
             if (child == null) continue;
             child.revalidate();
