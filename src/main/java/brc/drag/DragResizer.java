@@ -159,6 +159,9 @@ public final class DragResizer extends MouseAdapter {
     }
 
     public void migrateDragModifier() {
+        if (configManager.getConfiguration(BetterResizableChatConfig.GROUP, "dragModifierMigrated") != null) return;
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, "dragModifierMigrated", true);
+
         String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
         if (legacy == null) return;
         Keybind migrated;
@@ -166,7 +169,8 @@ public final class DragResizer extends MouseAdapter {
             case "ALT": migrated = Keybind.ALT; break;
             case "CTRL": migrated = Keybind.CTRL; break;
             case "SHIFT": migrated = Keybind.SHIFT; break;
-            default: migrated = Keybind.NOT_SET;
+            case "DISABLE": migrated = Keybind.NOT_SET; break;
+            default: return; // Already a serialized Keybind (or unknown) — don't overwrite it
         }
         configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
     }
