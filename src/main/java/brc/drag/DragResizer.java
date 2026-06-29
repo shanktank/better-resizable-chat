@@ -29,8 +29,9 @@ public final class DragResizer extends MouseAdapter {
 
     @Getter @Setter private Dimension lastDragSize; // Chat size from the previous drag frame; null while not dragging
     @Getter private volatile boolean dragging; // True while a border drag is in progress
+    @Getter private volatile boolean fixedMode; // Fixed layout: only the top border (height) is draggable
 
-    private boolean dragTop, dragRight;
+    private boolean dragTop, dragRight, dragFixed;
     private int startX, startY, startExtraW, startExtraH;
 
     public DragResizer(BetterResizableChatConfig config, ConfigManager configManager) {
@@ -44,9 +45,10 @@ public final class DragResizer extends MouseAdapter {
         };
     }
 
-    // Publishes the current chat rectangle for the mouse callbacks and overlay to read
-    public void update(Rectangle bounds) {
+    // Publishes the current chat rectangle and layout for the mouse callbacks and overlay to read
+    public void update(Rectangle bounds, boolean fixedMode) {
         this.bounds = bounds;
+        this.fixedMode = fixedMode;
     }
 
     // Clears all state, including any in-progress drag
@@ -65,17 +67,18 @@ public final class DragResizer extends MouseAdapter {
         if (b == null) return e;
 
         boolean top = nearTop(b, e);
-        boolean right = nearRight(b, e);
+        boolean right = !fixedMode && nearRight(b, e); // Fixed layout resizes height only, so ignore the right border
         if (!top && !right) return e;
 
         dragging = true;
         dragTop = top;
         dragRight = right;
+        dragFixed = fixedMode;
         startX = e.getX();
         startY = e.getY();
         // Take live config as baseline so ungrabbed/unchanged axis is treated as no-op
         startExtraW = config.widthChange();
-        startExtraH = config.heightChange();
+        startExtraH = dragFixed ? config.fixedHeightChange() : config.heightChange();
 
         e.consume();
         return e;
@@ -114,7 +117,12 @@ public final class DragResizer extends MouseAdapter {
     // Writes offsets from cursor's initial state as new values
     private void applyDrag(MouseEvent e) {
         if (dragRight) updateConfig(BetterResizableChatConfig.WIDTH_CHANGE, startExtraW + (e.getX() - startX));
-        if (dragTop) updateConfig(BetterResizableChatConfig.HEIGHT_CHANGE, startExtraH + (startY - e.getY()));
+        if (dragTop) {
+            updateConfig(
+                dragFixed ? BetterResizableChatConfig.FIXED_HEIGHT_CHANGE : BetterResizableChatConfig.HEIGHT_CHANGE,
+                startExtraH + (startY - e.getY())
+            );
+        }
     }
 
     private void updateConfig(String key, int value) {
@@ -147,7 +155,9 @@ public final class DragResizer extends MouseAdapter {
     boolean isSizeReadoutActive() {
         if (dragging) return true;
         if (!modifierActive()) return false;
-        return bounds != null && pointer != null && (topBand(bounds, BORDER_GRAB).contains(pointer) || rightBand(bounds, BORDER_GRAB).contains(pointer));
+        if (bounds == null || pointer == null) return false;
+        if (topBand(bounds, BORDER_GRAB).contains(pointer)) return true;
+        return !fixedMode && rightBand(bounds, BORDER_GRAB).contains(pointer); // No right band in fixed layout
     }
 
     static Rectangle topBand(Rectangle b, int grab) {
@@ -159,6 +169,9 @@ public final class DragResizer extends MouseAdapter {
     }
 
     public void migrateDragModifier() {
+        if (configManager.getConfiguration(BetterResizableChatConfig.GROUP, "dragModifierMigrated") != null) return;
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, "dragModifierMigrated", true);
+
         String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
         if (legacy == null) return;
         Keybind migrated;
@@ -166,7 +179,8 @@ public final class DragResizer extends MouseAdapter {
             case "ALT": migrated = Keybind.ALT; break;
             case "CTRL": migrated = Keybind.CTRL; break;
             case "SHIFT": migrated = Keybind.SHIFT; break;
-            default: migrated = Keybind.NOT_SET;
+            case "DISABLE": migrated = Keybind.NOT_SET; break;
+            default: return; // Already a serialized Keybind (or unknown) — don't overwrite it
         }
         configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
     }

@@ -193,11 +193,12 @@ public class BetterResizableChatPlugin extends Plugin {
             });
         } else if (dragging) {
             Dimension size = apply(false);
-            if (config.liveRewrap() && size != null && !size.equals(dragResizer.getLastDragSize())) client.runScript(RESIZES_CHAT_SCRIPT);
+            // Fixed mode re-wraps within apply() (width is locked); the rewrap script + relayout are resizable-only
+            if (client.isResized() && config.liveRewrap() && size != null && !size.equals(dragResizer.getLastDragSize())) client.runScript(RESIZES_CHAT_SCRIPT);
             dragResizer.setLastDragSize(size);
         } else {
             apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
-            if (wasDragging) {
+            if (wasDragging && client.isResized()) {
                 client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
             }
@@ -207,14 +208,10 @@ public class BetterResizableChatPlugin extends Plugin {
 
         scrollKeep.sync(); // Single preservation here
 
-        // Publish the current chat rectangle for resize band management
-        if (client.isResized()) {
-            Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
-            Widget slot = universe == null ? null : universe.getParent();
-            dragResizer.update(slot == null ? null : slot.getBounds());
-        } else {
-            dragResizer.update(null);
-        }
+        // Publish the current chat rectangle and layout for resize band management
+        Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
+        Widget slot = universe == null ? null : universe.getParent(); // Fixed: CHAT_CONTAINER; resizable: the chat slot
+        dragResizer.update(slot == null ? null : slot.getBounds(), !client.isResized());
     }
 
     // Apply resizes for the current layout
