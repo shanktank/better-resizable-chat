@@ -11,7 +11,6 @@ import net.runelite.api.widgets.WidgetUtil;
 
 public class ChatDialogBoxes {
     private static final int CHATBOX_GROUP = WidgetUtil.componentToInterface(InterfaceID.Chatbox.UNIVERSE);
-
     private static final int[] DIALOGS_TO_CENTER = {
         InterfaceID.MembershipBenefitsPrompt.UNIVERSE,
         InterfaceID.Chatmenu.OPTIONS,
@@ -33,8 +32,9 @@ public class ChatDialogBoxes {
         if (client.getVarcIntValue(VarClientID.MESLAYERMODE) != InputType.NONE.getType()) return true;
 
         // Any sub-interface opened into a chatbox-group component, keyed on mount slot
-        for (WidgetNode node : client.getComponentTable())
+        for (WidgetNode node : client.getComponentTable()) {
             if (WidgetUtil.componentToInterface((int) node.getHash()) == CHATBOX_GROUP) return true;
+        }
 
         return false;
     }

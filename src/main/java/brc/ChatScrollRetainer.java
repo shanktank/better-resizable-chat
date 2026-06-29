@@ -21,8 +21,8 @@ public final class ChatScrollRetainer {
     }
 
     void sync() {
-        Widget scrollArea = liveScrollArea();
-        if (scrollArea == null) {
+        Widget scrollArea = client.getWidget(InterfaceID.Chatbox.SCROLLAREA);
+        if (scrollArea == null || scrollArea.getHeight() <= 0 || scrollArea.getScrollHeight() <= 0) {
             lastViewport = null; // Chat not live (hop/relog)
             return;
         }
@@ -44,11 +44,5 @@ public final class ChatScrollRetainer {
 
         lastViewport = viewport;
         lastWidth = width;
-    }
-
-    // Usable metrics guarded against mid-construction values, otherwise null
-    private Widget liveScrollArea() {
-        Widget scrollArea = client.getWidget(InterfaceID.Chatbox.SCROLLAREA);
-        return scrollArea == null || scrollArea.getHeight() <= 0 || scrollArea.getScrollHeight() <= 0 ? null : scrollArea;
     }
 }
