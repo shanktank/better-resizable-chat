@@ -58,9 +58,11 @@ public class BetterResizableChatPlugin extends Plugin {
     private ChatBackgroundGraphic bgGraphic;
     private ChatDialogBoxes dialogBoxes;
     private PrivateMessageSplit pmSplit;
+    private FixedModeChat fixedChat;
     private ChatScrollRetainer scrollKeep;
     private DragResizer dragResizer;
     private DragPreview dragPreview;
+    private FixedModeProbe fixedProbe; // DEV-ONLY, remove before release
     private boolean wasDragging;
 
     @Provides
@@ -68,11 +70,17 @@ public class BetterResizableChatPlugin extends Plugin {
         return configManager.getConfig(BetterResizableChatConfig.class);
     }
 
-    private void onEnable() {
+    private void onEnableResizable() {
         scrollKeep.sync();
         apply(config.heightChange() == 0 && config.widthChange() == 0);
         client.runScript(REWRAPS_CHAT_SCRIPT);
         mainModals.relayout();
+        scrollKeep.sync();
+    }
+
+    private void onEnableFixed() {
+        scrollKeep.sync();
+        apply(true);
         scrollKeep.sync();
     }
 
@@ -83,16 +91,18 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         pmSplit = new PrivateMessageSplit(client, config);
+        fixedChat = new FixedModeChat(client, config, bgGraphic, pmSplit);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
+        fixedProbe = new FixedModeProbe(client); // DEV-ONLY, remove before release
 
         dragResizer.migrateDragModifier();
         keyManager.registerKeyListener(dragResizer.getKeyListener());
         mouseManager.registerMouseListener(dragResizer);
         overlayManager.add(dragPreview);
 
-        if (client.isResized()) clientThread.invoke(this::onEnable);
+        clientThread.invoke(client.isResized() ? this::onEnableResizable : this::onEnableFixed);
     }
 
     @Override
@@ -103,15 +113,17 @@ public class BetterResizableChatPlugin extends Plugin {
 
         dragResizer.reset();
 
-        if (client.isResized()) {
-            clientThread.invoke(() -> {
-                scrollKeep.sync();
+        clientThread.invoke(() -> {
+            scrollKeep.sync();
+            if (client.isResized()) {
                 restore();
                 client.runScript(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
                 mainModals.relayout();
-                scrollKeep.sync();
-            });
-        }
+            } else {
+                fixedChat.restore();
+            }
+            scrollKeep.sync();
+        });
     }
 
     @Subscribe
@@ -121,6 +133,8 @@ public class BetterResizableChatPlugin extends Plugin {
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
             client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
+        } else if ("brcfixed".equals(event.getCommand())) { // DEV-ONLY: dump fixed-mode chat widget tree
+            fixedProbe.dump();
         }
     }
 
@@ -130,8 +144,10 @@ public class BetterResizableChatPlugin extends Plugin {
         clientThread.invoke(() -> {
             scrollKeep.sync();
             apply(true);
-            client.runScript(REWRAPS_CHAT_SCRIPT);
-            if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
+            if (client.isResized()) {
+                client.runScript(REWRAPS_CHAT_SCRIPT);
+                if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
+            }
             scrollKeep.sync();
         });
     }
@@ -143,10 +159,14 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onResizeableChanged(ResizeableChanged event) {
+        // isResized() can flip before the toplevel swap completes, so drive off the event and
+        // defer the enable a cycle. Undo the outgoing layout's edits before enabling the new one.
         if (event.isResized()) {
-            clientThread.invokeLater(this::onEnable);
+            fixedChat.restore(); // Leaving fixed: reset CHAT_CONTAINER (548:11 persists across logout)
+            clientThread.invokeLater(this::onEnableResizable);
         } else {
-            restore();
+            restore(); // Leaving resizable
+            clientThread.invokeLater(this::onEnableFixed);
         }
     }
 
@@ -201,16 +221,20 @@ public class BetterResizableChatPlugin extends Plugin {
         }
     }
 
-    // Apply resizes
+    // Apply resizes for the current layout
     private Dimension apply(boolean force) {
-        if (!client.isResized()) return null;
+        return client.isResized() ? applyResizable(force) : fixedChat.apply(force);
+    }
 
+    // Apply resizes in resizable layout
+    private Dimension applyResizable(boolean force) {
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (universe == null) return null;
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
         Widget slot = universe.getParent();
         if (slot == null) return null;
+        if (slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Fixed slot observed mid-swap; leave it to FixedModeChat
 
         int widthChange = config.widthChange();
         int heightChange = config.heightChange();
@@ -271,7 +295,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if (universe == null) return;
 
         Widget slot = universe.getParent();
-        if (slot != null) {
+        if (slot != null && slot.getId() != InterfaceID.Toplevel.CHAT_CONTAINER) { // Don't touch the fixed slot from the resizable path
             slot.setSize(CHATBOX_SPRITE_W, CHATBOX_SLOT_H);
             slot.setForcedPosition(-1, -1);
             slot.revalidate();
@@ -293,7 +317,7 @@ public class BetterResizableChatPlugin extends Plugin {
         hudAnchors.restore();
     }
 
-    private void revalidateAll(Widget[] children) {
+    private static void revalidateAll(Widget[] children) {
         if (children == null) return;
         for (Widget child : children) {
             if (child == null) continue;
@@ -303,7 +327,7 @@ public class BetterResizableChatPlugin extends Plugin {
         }
     }
 
-    private void revalidateChildren(Widget widget) {
+    static void revalidateChildren(Widget widget) {
         revalidateAll(widget.getStaticChildren());
         revalidateAll(widget.getDynamicChildren());
     }

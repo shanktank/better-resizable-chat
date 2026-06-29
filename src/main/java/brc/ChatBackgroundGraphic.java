@@ -54,10 +54,8 @@ public class ChatBackgroundGraphic {
         return dynamic[0];
     }
 
-    // Stretch the background sprite so the baked-in edges get clipped
+    // Stretch the background sprite so the baked-in edges get clipped, args are absolute target dims
     void zoomBakedSprite(int widthChange, int heightChange) {
-        if (!client.isResized()) return;
-
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background == null) return;
         Widget body = getBackgroundBody(background);
@@ -76,8 +74,6 @@ public class ChatBackgroundGraphic {
     }
 
     void revertBakedSprite() {
-        if (!client.isResized()) return;
-
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background != null) {
             // Revert corner bleed adjustment
