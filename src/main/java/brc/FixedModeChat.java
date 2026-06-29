@@ -25,12 +25,15 @@ public class FixedModeChat {
     private final BetterResizableChatConfig config;
     private final ChatBackgroundGraphic bgGraphic;
     private final PrivateMessageSplit pmSplit;
+    private final ChatDialogBoxes dialogBoxes;
 
-    FixedModeChat(Client client, BetterResizableChatConfig config, ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit) {
+    FixedModeChat(Client client, BetterResizableChatConfig config, ChatBackgroundGraphic bgGraphic,
+                  PrivateMessageSplit pmSplit, ChatDialogBoxes dialogBoxes) {
         this.client = client;
         this.config = config;
         this.bgGraphic = bgGraphic;
         this.pmSplit = pmSplit;
+        this.dialogBoxes = dialogBoxes;
     }
 
     // Returns the applied slot size, or null if not in fixed layout / widgets missing
@@ -42,8 +45,15 @@ public class FixedModeChat {
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
 
+        // Shrink/grow to stock height while chat overlay is open
+        int heightChange = config.fixedHeightChange();
+        if (dialogBoxes.isDialogOpen()) {
+            if (heightChange < 0) heightChange = 0; // Unshrink: a shrunk chat would clip the dialog
+            if (config.ungrowForDialogs() && heightChange > 0) heightChange = 0; // Ungrow back to stock
+        }
+
         // Clamp height to [tab bar, full frame]; bottom edge stays pinned, top grows up toward 0
-        int targetH = Math.min(STOCK_BOTTOM, Math.max(TAB_BAR_H, STOCK_H + config.fixedHeightChange()));
+        int targetH = Math.min(STOCK_BOTTOM, Math.max(TAB_BAR_H, STOCK_H + heightChange));
         int targetY = STOCK_BOTTOM - targetH;
         int backgroundH = targetH - TAB_BAR_H; // Background/chat-area height (excludes the tab bar)
         int mainH = Math.max(STOCK_MAIN_H, targetY - MAIN_TOP); // Extend the viewport down to the chat when shrunk

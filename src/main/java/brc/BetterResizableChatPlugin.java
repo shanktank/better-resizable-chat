@@ -90,7 +90,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         pmSplit = new PrivateMessageSplit(client, config);
-        fixedChat = new FixedModeChat(client, config, bgGraphic, pmSplit);
+        fixedChat = new FixedModeChat(client, config, bgGraphic, pmSplit, dialogBoxes);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
@@ -185,8 +185,10 @@ public class BetterResizableChatPlugin extends Plugin {
             // Chat overlay or toplevel modal just opened or closed
             clientThread.invokeLater(() -> { // Redraw is smooth when done in client thread
                 apply(false);
-                mainModals.relayout();
-                client.runScript(RESIZES_CHAT_SCRIPT);
+                if (client.isResized()) { // Resizable-only re-fit + re-wrap; fixed mode is fully re-asserted within apply()
+                    mainModals.relayout();
+                    client.runScript(RESIZES_CHAT_SCRIPT);
+                }
                 scrollKeep.sync();
             });
         } else if (dragging) {
@@ -325,10 +327,15 @@ public class BetterResizableChatPlugin extends Plugin {
         revalidateAll(widget.getDynamicChildren());
     }
 
-    // True if temp unshrinking or growing
+    // True if a dialog opening/closing would temporarily unshrink or ungrow the chat in the current layout
     private boolean dialogAdjustsSize() {
-        int w = config.widthChange(), h = config.heightChange();
-        return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
+        if (!client.isResized()) {
+            int h = config.fixedHeightChange();
+            return h < 0 || (config.ungrowForDialogs() && h > 0);
+        } else {
+            int w = config.widthChange(), h = config.heightChange();
+            return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
+        }
     }
 
     @SuppressWarnings("deprecation")
