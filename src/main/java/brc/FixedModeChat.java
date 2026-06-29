@@ -38,6 +38,13 @@ public class FixedModeChat {
     private static final int MAIN_TOP = 4;
     private static final int STOCK_MAIN_H = 334;
 
+    // The viewport's side-border sprites, which stop at the stock viewport bottom (338) and must be
+    // extended down with it or they leave black strips. Left = Toplevel.CONTROL (548:1, the 4px edge,
+    // shares MAIN's top/height); right = Toplevel.GAMEFRAME_GRAPHIC5 (548:12, the viewport/inventory
+    // divider) stock orig=(516,205,31,133).
+    private static final int RIGHT_BORDER_TOP = 205;
+    private static final int RIGHT_BORDER_H = 133;
+
     private final Client client;
     private final BetterResizableChatConfig config;
     private final ChatBackgroundGraphic bgGraphic;
@@ -75,12 +82,14 @@ public class FixedModeChat {
         ) {
             bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/rebuild
+            extendViewportBorders(targetY); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
             return new Dimension(STOCK_W, targetH);
         }
 
         sizeChat(slot, universe, targetY, targetH);
         sizeViewport(main, mainH);
+        extendViewportBorders(targetY);
         bgGraphic.drawBorder(chatArea);
         bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
         pmSplit.resizePmBoxFixed(pmH);
@@ -99,6 +108,7 @@ public class FixedModeChat {
             if (!stock) sizeChat(slot, universe, STOCK_Y, STOCK_H);
         }
         sizeViewport(client.getWidget(InterfaceID.Toplevel.MAIN), STOCK_MAIN_H);
+        extendViewportBorders(STOCK_Y); // Reset side borders to stock (targetY == stock chat top)
         pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP); // Stock split-PM position (bottom at stock chat top 338)
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();
@@ -122,5 +132,23 @@ public class FixedModeChat {
         main.setOriginalHeight(h);
         main.revalidate();
         BetterResizableChatPlugin.revalidateChildren(main); // Reflow the viewport + in-scene overlays
+    }
+
+    // Extend the viewport's left/right border sprites down to the chat top so they don't leave black strips.
+    // The right pillar (a detailed sprite) is tiled so its visible portion isn't stretched; the left edge
+    // (a plain sprite) stretches cleanly.
+    private void extendViewportBorders(int targetY) {
+        resizeBorder(InterfaceID.Toplevel.CONTROL, MAIN_TOP, STOCK_MAIN_H, targetY, false);
+        resizeBorder(InterfaceID.Toplevel.GAMEFRAME_GRAPHIC5, RIGHT_BORDER_TOP, RIGHT_BORDER_H, targetY, true);
+    }
+
+    private void resizeBorder(int widgetId, int top, int stockH, int targetY, boolean tile) {
+        Widget border = client.getWidget(widgetId);
+        if (border == null) return;
+        int h = Math.max(stockH, targetY - top); // Stay stock when growing; reach the chat top when shrunk
+        if (border.getOriginalHeight() == h) return;
+        if (tile) border.setSpriteTiling(true); // Repeat the texture instead of stretching its detail
+        border.setOriginalHeight(h);
+        border.revalidate();
     }
 }
