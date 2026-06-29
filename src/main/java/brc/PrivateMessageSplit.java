@@ -30,14 +30,13 @@ public class PrivateMessageSplit {
         Widget pmContainer = pmChat.getParent();
         if (pmContainer == null) return;
 
-        if (pmContainer.getWidthMode() != WidgetSizeMode.ABSOLUTE) return; // Fixed mode uses an absolute mode container
+        if (pmContainer.getWidthMode() != WidgetSizeMode.ABSOLUTE) return; // Fixed layout uses an absolute container
 
         if (pmContainer.getOriginalWidth() != slotW) {
             pmContainer.setOriginalWidth(slotW);
             pmContainer.revalidate();
         }
 
-        // setOriginalWidth leads to width spanning full viewport, must use setWidth instead
-        BetterResizableChatPlugin.setWidth(pmChat, pmContainer.getOriginalWidth());
+        BetterResizableChatPlugin.setWidth(pmChat, slotW); // setOriginalWidth leads to width spanning full viewport
     }
 }

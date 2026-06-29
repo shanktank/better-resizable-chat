@@ -39,8 +39,7 @@ public final class ChatScrollRetainer {
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, target);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
         } else if (!dialogBoxes.isDialogOpen()) {
-            // Remember where viewer is sitting, skipped while chat dialog is open
-            distFromBottom = Math.max(0, contentH - scrollY - viewport);
+            distFromBottom = Math.max(0, contentH - scrollY - viewport); // Remember where viewer is sitting, skipped while dialog open
         }
 
         lastViewport = viewport;

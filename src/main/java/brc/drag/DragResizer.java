@@ -2,6 +2,7 @@ package brc.drag;
 
 import brc.BetterResizableChatConfig;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.config.Keybind;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.MouseAdapter;
 import lombok.Getter;
@@ -12,17 +13,19 @@ import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
-// Let the player resize chat by holding configured drag modifier key and dragging top or right border of chat box
-public final class DragResizer extends MouseAdapter implements KeyListener {
+// Let the player resize chat by holding the configured drag key and dragging top or right border of chat box
+public final class DragResizer extends MouseAdapter {
     static final int BORDER_GRAB = 6;
     static final int RIGHT_BAND_SHIFT = 1;
 
-    private final ConfigManager configManager;
     private final BetterResizableChatConfig config;
+    private final ConfigManager configManager;
+
+    @Getter private final KeyListener keyListener; // Tracks the configured drag key's held state via AWT key events
 
     @Getter private volatile Rectangle bounds; // Current chat rectangle, published from update on the client thread
     @Getter private volatile Point pointer; // Last known cursor position in canvas space, published from mouse callbacks
-    private volatile boolean modifierHeld; // Written from the key callbacks (AWT thread), read by the overlay (client thread).
+    private volatile boolean modifierHeld; // Written from the hotkey callbacks (AWT thread), read by the overlay (client thread)
 
     @Getter @Setter private Dimension lastDragSize; // Chat size from the previous drag frame; null while not dragging
     @Getter private volatile boolean dragging; // True while a border drag is in progress
@@ -30,9 +33,15 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
     private boolean dragTop, dragRight;
     private int startX, startY, startExtraW, startExtraH;
 
-    public DragResizer(ConfigManager configManager, BetterResizableChatConfig config) {
-        this.configManager = configManager;
+    public DragResizer(BetterResizableChatConfig config, ConfigManager configManager) {
         this.config = config;
+        this.configManager = configManager;
+        this.keyListener = new KeyListener() { // Track the drag key's held state without consuming the event
+            @Override public void keyTyped(KeyEvent e) {}
+            @Override public void keyPressed(KeyEvent e) { if (config.dragModifier().matches(e)) modifierHeld = true; }
+            @Override public void keyReleased(KeyEvent e) { if (config.dragModifier().matches(e)) modifierHeld = false; }
+            @Override public void focusLost() { modifierHeld = false; } // Window blur (alt-tab while held) would otherwise stick it on
+        };
     }
 
     // Publishes the current chat rectangle for the mouse callbacks and overlay to read
@@ -49,27 +58,8 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
     }
 
     @Override
-    public void keyTyped(KeyEvent e) {}
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-        modifierHeld = config.dragModifier().matches(e);
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        // On the modifier key's own release its flag is already cleared in the event, so matches() returns false here.
-        modifierHeld = config.dragModifier().matches(e);
-    }
-
-    @Override
-    public void focusLost() {
-        modifierHeld = false; // Window blur (e.g. alt-tab while holding the key) would otherwise leave it stuck on
-    }
-
-    @Override
     public MouseEvent mousePressed(MouseEvent e) {
-        if (dragging || !config.dragModifier().matches(e)) return e; // Matches() is false for DISABLE, so that's covered
+        if (dragging || !modifierActive()) return e; // An arbitrary drag key isn't carried in the mouse event, so gate on the tracked held-state
 
         Rectangle b = bounds;
         if (b == null) return e;
@@ -86,6 +76,7 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
         // Take live config as baseline so ungrabbed/unchanged axis is treated as no-op
         startExtraW = config.widthChange();
         startExtraH = config.heightChange();
+
         e.consume();
         return e;
     }
@@ -122,14 +113,13 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
 
     // Writes offsets from cursor's initial state as new values
     private void applyDrag(MouseEvent e) {
-        if (dragRight) {
-            int w = startExtraW + (e.getX() - startX);
-            if (w != config.widthChange()) configManager.setConfiguration(BetterResizableChatConfig.GROUP, "widthChange", w);
-        }
-        if (dragTop) {
-            int h = startExtraH + (startY - e.getY());
-            if (h != config.heightChange()) configManager.setConfiguration(BetterResizableChatConfig.GROUP, "heightChange", h);
-        }
+        if (dragRight) updateConfig(BetterResizableChatConfig.WIDTH_CHANGE, startExtraW + (e.getX() - startX));
+        if (dragTop) updateConfig(BetterResizableChatConfig.HEIGHT_CHANGE, startExtraH + (startY - e.getY()));
+    }
+
+    private void updateConfig(String key, int value) {
+        int current = configManager.getConfiguration(BetterResizableChatConfig.GROUP, key, int.class);
+        if (current != value) configManager.setConfiguration(BetterResizableChatConfig.GROUP, key, value);
     }
 
     // Cursor within boundaries to alter height change on click-drag
@@ -143,21 +133,21 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
         return e.getX() >= outerX - BORDER_GRAB && e.getX() <= outerX && e.getY() >= b.y && e.getY() <= b.y + b.height + BORDER_GRAB;
     }
 
-    // Modifier key enabled and held
+    // Drag key enabled and held
     private boolean modifierActive() {
-        return modifierHeld && config.dragModifier() != DragModifier.ModifierKey.DISABLE;
+        return modifierHeld && !Keybind.NOT_SET.equals(config.dragModifier());
     }
 
-    // Whether the draggable border bands should be drawn this frame: a drag is in progress, or the modifier is active
+    // Whether the draggable border bands should be drawn this frame: a drag is in progress, or the drag key is active
     boolean isHighlightActive() {
         return dragging || modifierActive();
     }
 
-    // Whether the size readout should show: a drag is in progress, or the modifier is held with the cursor over a band
+    // Whether the size readout should show: a drag is in progress, or the drag key is held with the cursor over a band
     boolean isSizeReadoutActive() {
         if (dragging) return true;
         if (!modifierActive()) return false;
-        return bounds != null && pointer != null && topBand(bounds, BORDER_GRAB).contains(pointer) || rightBand(bounds, BORDER_GRAB).contains(pointer);
+        return bounds != null && pointer != null && (topBand(bounds, BORDER_GRAB).contains(pointer) || rightBand(bounds, BORDER_GRAB).contains(pointer));
     }
 
     static Rectangle topBand(Rectangle b, int grab) {
@@ -166,5 +156,18 @@ public final class DragResizer extends MouseAdapter implements KeyListener {
 
     static Rectangle rightBand(Rectangle b, int grab) {
         return new Rectangle(b.x + b.width - grab - RIGHT_BAND_SHIFT, b.y, grab + 1, b.height + grab);
+    }
+
+    public void migrateDragModifier() {
+        String legacy = configManager.getConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER);
+        if (legacy == null) return;
+        Keybind migrated;
+        switch (legacy) {
+            case "ALT": migrated = Keybind.ALT; break;
+            case "CTRL": migrated = Keybind.CTRL; break;
+            case "SHIFT": migrated = Keybind.SHIFT; break;
+            default: migrated = Keybind.NOT_SET;
+        }
+        configManager.setConfiguration(BetterResizableChatConfig.GROUP, BetterResizableChatConfig.DRAG_MODIFIER, migrated);
     }
 }
