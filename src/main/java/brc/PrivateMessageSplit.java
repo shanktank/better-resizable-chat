@@ -16,18 +16,6 @@ public class PrivateMessageSplit {
         this.config = config;
     }
 
-    // Fixed-layout vertical tracking: the split-PM lines are bottom-anchored within PmChat.CONTAINER
-    // (163:0), so setting its height puts its bottom at the chat top. Like resizePmBox's literal width,
-    // a literal height is used (it is a mounted interface root, so its MINUS-fill resolves against the
-    // client root, not its container) and only the children are revalidated.
-    void resizePmBoxFixed(int height) {
-        Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
-        if (pmChat == null) return; // Split private chat off, or box not built yet
-        if (pmChat.getHeight() == height) return; // Already positioned
-        BetterResizableChatPlugin.setHeight(pmChat, height);
-        BetterResizableChatPlugin.revalidateChildren(pmChat);
-    }
-
     void resizePmBox(Integer slotW) {
         if (slotW == null || !config.rewrapPrivateChat()) { // Revert or disable
             if (!pmBoxResized) return;
@@ -50,5 +38,14 @@ public class PrivateMessageSplit {
         }
 
         BetterResizableChatPlugin.setWidth(pmChat, slotW); // setOriginalWidth leads to width spanning full viewport
+    }
+
+    // Bottom-anchored within PmChat.CONTAINER but resolves against client root
+    void resizePmBoxFixed(int height) {
+        Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
+        if (pmChat == null) return; // Split private chat off or box not built yet
+        if (pmChat.getHeight() == height) return; // Already positioned
+        BetterResizableChatPlugin.setHeight(pmChat, height); // Must use literal width
+        BetterResizableChatPlugin.revalidateChildren(pmChat);
     }
 }

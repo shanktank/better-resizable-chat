@@ -6,42 +6,18 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
 import java.awt.Dimension;
 
-/**
- * Fixed (non-resizable) layout chat height resize.
- *
- * <p>In fixed layout the chatbox interface (group 162) mounts into {@code Toplevel.CHAT_CONTAINER}
- * (548:11) — an ABSOLUTE-sized slot pinned to the bottom of the fixed game frame, with stock
- * geometry {@code orig=(x=0, y=338, w=519, h=165)} so its bottom edge sits at the frame bottom
- * (503).
- *
- * <p>Growing the chat keeps the bottom edge pinned and moves the top edge up (over the bottom of the
- * 3D viewport); shrinking moves the top edge down. Only the slot's original Y/height change.
- *
- * <p>{@code Chatbox.UNIVERSE} (162:0) is the mounted interface root and is natively MINUS-fill. But,
- * like the resizable layout, its fill resolves against the client root (765x503) rather than the
- * slot, so {@code revalidate()} would blow it up to the whole frame. So we pin it ABSOLUTE to the
- * slot size; the rest of the chatbox subtree (chat area, tab bar, scroll area) then reflows
- * correctly via a revalidate cascade. Width is never touched, so no re-wrap or tab spreading is
- * needed. The background sprite and stone border are handled exactly as in resizable layout
- * ({@link ChatBackgroundGraphic#zoomBakedSprite}/{@link ChatBackgroundGraphic#drawBorder}).
- */
 public class FixedModeChat {
-    private static final int STOCK_Y = 338; // Stock top of CHAT_CONTAINER (548:11) in fixed layout
-    private static final int STOCK_W = BetterResizableChatPlugin.CHATBOX_SPRITE_W; // 519
-    private static final int STOCK_H = BetterResizableChatPlugin.CHATBOX_SLOT_H;   // 165 (chat box + tab bar)
-    private static final int TAB_BAR_H = STOCK_H - BetterResizableChatPlugin.CHATBOX_SPRITE_H; // 23
-    private static final int STOCK_BOTTOM = STOCK_Y + STOCK_H; // 503 — kept pinned as the chat grows/shrinks
+    private static final int STOCK_Y = 338; // Stock top of CHAT_CONTAINER in fixed layout
+    private static final int STOCK_W = BetterResizableChatPlugin.CHATBOX_SPRITE_W;
+    private static final int STOCK_H = BetterResizableChatPlugin.CHATBOX_SLOT_H;
+    private static final int TAB_BAR_H = STOCK_H - BetterResizableChatPlugin.CHATBOX_SPRITE_H;
+    private static final int STOCK_BOTTOM = STOCK_Y + STOCK_H;
 
-    // The 3D viewport container Toplevel.MAIN (548:10), stock orig=(4,4,512,334). VIEWPORT (548:26)
-    // MINUS-fills it. When the chat shrinks below stock we grow MAIN down to the chat's new top so the
-    // freed strip renders (and is clickable) game instead of a black band.
+    // Veiwport container, used to adjust viewport as chat height shrinks
     private static final int MAIN_TOP = 4;
     private static final int STOCK_MAIN_H = 334;
 
-    // The viewport's side-border sprites, which stop at the stock viewport bottom (338) and must be
-    // extended down with it or they leave black strips. Left = Toplevel.CONTROL (548:1, the 4px edge,
-    // shares MAIN's top/height); right = Toplevel.GAMEFRAME_GRAPHIC5 (548:12, the viewport/inventory
-    // divider) stock orig=(516,205,31,133).
+    // Viewport's side border sprites, must be extended as chat height shrinks
     private static final int RIGHT_BORDER_TOP = 205;
     private static final int RIGHT_BORDER_H = 133;
 
@@ -66,7 +42,7 @@ public class FixedModeChat {
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
 
-        // Clamp height to [tab bar, full frame]; bottom edge stays pinned at 503, top grows up toward 0
+        // Clamp height to [tab bar, full frame]; bottom edge stays pinned, top grows up toward 0
         int targetH = Math.min(STOCK_BOTTOM, Math.max(TAB_BAR_H, STOCK_H + config.fixedHeightChange()));
         int targetY = STOCK_BOTTOM - targetH;
         int backgroundH = targetH - TAB_BAR_H; // Background/chat-area height (excludes the tab bar)
@@ -96,22 +72,21 @@ public class FixedModeChat {
         return new Dimension(STOCK_W, targetH);
     }
 
-    // Revert to stock. Pins UNIVERSE absolute at stock size (visually identical to native MINUS-fill;
-    // the next engine chatbox rebuild restores the native mode). Only ever writes known stock values,
-    // so it is safe to call mid-layout-swap (548:11 persists across logout).
+    // Revert to stock using absolute universe, next engine chatbox rebuild fully restore native mode
     void restore() {
         Widget slot = client.getWidget(InterfaceID.Toplevel.CHAT_CONTAINER);
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
-        if (slot != null) {
-            boolean stock = slot.getOriginalY() == STOCK_Y && slot.getOriginalHeight() == STOCK_H
-                && (universe == null || (universe.getWidth() == STOCK_W && universe.getHeight() == STOCK_H));
-            if (!stock) sizeChat(slot, universe, STOCK_Y, STOCK_H);
-        }
+        if (slot != null && !isStock(slot, universe)) sizeChat(slot, universe, STOCK_Y, STOCK_H);
         sizeViewport(client.getWidget(InterfaceID.Toplevel.MAIN), STOCK_MAIN_H);
-        extendViewportBorders(STOCK_Y); // Reset side borders to stock (targetY == stock chat top)
-        pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP); // Stock split-PM position (bottom at stock chat top 338)
+        extendViewportBorders(STOCK_Y); // Reset side borders to stock
+        pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP);
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();
+    }
+
+    boolean isStock(Widget slot, Widget universe) {
+        return slot.getOriginalY() == STOCK_Y && slot.getOriginalHeight() == STOCK_H
+            && (universe == null || (universe.getWidth() == STOCK_W && universe.getHeight() == STOCK_H));
     }
 
     private static void sizeChat(Widget slot, Widget universe, int y, int h) {
@@ -120,7 +95,6 @@ public class FixedModeChat {
         slot.revalidate();
 
         if (universe == null) return;
-        // Pin absolute: its native MINUS-fill resolves against the client root, not the slot
         universe.setSize(STOCK_W, h, WidgetSizeMode.ABSOLUTE, WidgetSizeMode.ABSOLUTE);
         universe.revalidate();
         BetterResizableChatPlugin.revalidateChildren(universe); // Reflow chat area, tabs, scroll, background
@@ -134,9 +108,7 @@ public class FixedModeChat {
         BetterResizableChatPlugin.revalidateChildren(main); // Reflow the viewport + in-scene overlays
     }
 
-    // Extend the viewport's left/right border sprites down to the chat top so they don't leave black strips.
-    // The right pillar (a detailed sprite) is tiled so its visible portion isn't stretched; the left edge
-    // (a plain sprite) stretches cleanly.
+    // Extend the viewport's left/right border sprites down to the chat top
     private void extendViewportBorders(int targetY) {
         resizeBorder(InterfaceID.Toplevel.CONTROL, MAIN_TOP, STOCK_MAIN_H, targetY, false);
         resizeBorder(InterfaceID.Toplevel.GAMEFRAME_GRAPHIC5, RIGHT_BORDER_TOP, RIGHT_BORDER_H, targetY, true);

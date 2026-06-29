@@ -31,8 +31,8 @@ import javax.inject.Inject;
 
 @PluginDescriptor(
     name = "Chat Resizer",
-    description = "Resize chat box. Requires resizable layout.",
-    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better"},
+    description = "Resize chat box in resizable or fixed layout.",
+    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better", "fixed"},
     conflicts = {"Resizable Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
@@ -62,7 +62,6 @@ public class BetterResizableChatPlugin extends Plugin {
     private ChatScrollRetainer scrollKeep;
     private DragResizer dragResizer;
     private DragPreview dragPreview;
-    private FixedModeProbe fixedProbe; // DEV-ONLY, remove before release
     private boolean wasDragging;
 
     @Provides
@@ -95,7 +94,6 @@ public class BetterResizableChatPlugin extends Plugin {
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
-        fixedProbe = new FixedModeProbe(client); // DEV-ONLY, remove before release
 
         dragResizer.migrateDragModifier();
         keyManager.registerKeyListener(dragResizer.getKeyListener());
@@ -133,8 +131,6 @@ public class BetterResizableChatPlugin extends Plugin {
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
             client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
-        } else if ("brcfixed".equals(event.getCommand())) { // DEV-ONLY: dump fixed-mode chat widget tree
-            fixedProbe.dump();
         }
     }
 
@@ -159,10 +155,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onResizeableChanged(ResizeableChanged event) {
-        // isResized() can flip before the toplevel swap completes, so drive off the event and
-        // defer the enable a cycle. Undo the outgoing layout's edits before enabling the new one.
-        if (event.isResized()) {
-            fixedChat.restore(); // Leaving fixed: reset CHAT_CONTAINER (548:11 persists across logout)
+        if (event.isResized()) { // Can flip before toplevel swap completes, defer swap a cycle to undo current edits before applying new ones
+            fixedChat.restore(); // Leaving fixed, reset CHAT_CONTAINER (persists across logout)
             clientThread.invokeLater(this::onEnableResizable);
         } else {
             restore(); // Leaving resizable
@@ -233,8 +227,7 @@ public class BetterResizableChatPlugin extends Plugin {
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
         Widget slot = universe.getParent();
-        if (slot == null) return null;
-        if (slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Fixed slot observed mid-swap; leave it to FixedModeChat
+        if (slot == null || slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Not loaded or mid-swap
 
         int widthChange = config.widthChange();
         int heightChange = config.heightChange();
