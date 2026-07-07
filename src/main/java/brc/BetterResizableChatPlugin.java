@@ -315,7 +315,12 @@ public class BetterResizableChatPlugin extends Plugin {
         hudAnchors.restore();
     }
 
-    private static void revalidateAll(Widget[] children) {
+    static void revalidateChildren(Widget widget) {
+        revalidateAll(widget.getStaticChildren());
+        revalidateAll(widget.getDynamicChildren());
+    }
+
+    static void revalidateAll(Widget[] children) {
         if (children == null) return;
         for (Widget child : children) {
             if (child == null) continue;
@@ -323,11 +328,6 @@ public class BetterResizableChatPlugin extends Plugin {
             if (child.getId() == InterfaceID.Chatbox.SCROLLAREA) continue; // Gets handled for us
             revalidateChildren(child);
         }
-    }
-
-    static void revalidateChildren(Widget widget) {
-        revalidateAll(widget.getStaticChildren());
-        revalidateAll(widget.getDynamicChildren());
     }
 
     // True if a dialog opening/closing would temporarily unshrink or ungrow the chat in the current layout
