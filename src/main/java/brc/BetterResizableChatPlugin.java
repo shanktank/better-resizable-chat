@@ -35,7 +35,7 @@ import javax.inject.Inject;
     name = "Chat Resizer",
     description = "Resize chat box in resizable or fixed layout.",
     tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better", "fixed"},
-    conflicts = {"Resizable Chat"}
+    conflicts = {"Resizable Chat", "Fixed Mode Hide Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
