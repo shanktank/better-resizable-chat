@@ -53,7 +53,10 @@ public final class DragPreview extends Overlay {
         boolean readout = drag.isSizeReadoutActive();
         if (!bands && !readout) return null;
 
-        if (readout) tooltipManager.add(new Tooltip("X: " + signed(config.widthChange()) + "   Y: " + signed(config.heightChange())));
+        boolean fixed = drag.isFixedMode();
+        if (readout) tooltipManager.add(new Tooltip(fixed
+            ? "Y: " + signed(config.fixedHeightChange()) // Fixed layout resizes height only
+            : "X: " + signed(config.widthChange()) + "   Y: " + signed(config.heightChange())));
 
         Rectangle b = drag.getBounds();
         if (b == null) return null; // Suspended between the active-check and here
@@ -64,22 +67,23 @@ public final class DragPreview extends Overlay {
         if (bands) {
             int grab = DragResizer.BORDER_GRAB;
             Rectangle top = DragResizer.topBand(b, grab);
-            Rectangle right = DragResizer.rightBand(b, grab);
-
-            // Brighten hovered band(s)
-            boolean hoverTop = p != null && top.contains(p);
-            boolean hoverRight = p != null && right.contains(p);
+            boolean hoverTop = p != null && top.contains(p); // Brighten hovered band
 
             g.setColor(hoverTop ? fillHover : fill);
             g.fill(top);
-            g.setColor(hoverRight ? fillHover : fill);
-            g.fill(right);
 
             int rightX = b.x + b.width - DragResizer.RIGHT_BAND_SHIFT; // Stone border
             g.setColor(hoverTop ? edgeHover : edge);
             g.drawLine(b.x - grab, b.y, rightX, b.y); // Top edge
-            g.setColor(hoverRight ? edgeHover : edge);
-            g.drawLine(rightX, b.y, rightX, b.y + b.height + grab); // Right edge
+
+            if (!fixed) {
+                Rectangle right = DragResizer.rightBand(b, grab);
+                boolean hoverRight = p != null && right.contains(p);
+                g.setColor(hoverRight ? fillHover : fill);
+                g.fill(right);
+                g.setColor(hoverRight ? edgeHover : edge);
+                g.drawLine(rightX, b.y, rightX, b.y + b.height + grab); // Right edge
+            }
         }
 
         return null;

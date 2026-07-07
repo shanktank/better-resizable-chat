@@ -39,4 +39,13 @@ public class PrivateMessageSplit {
 
         BetterResizableChatPlugin.setWidth(pmChat, slotW); // setOriginalWidth leads to width spanning full viewport
     }
+
+    // Bottom-anchored within PmChat.CONTAINER but resolves against client root
+    void resizePmBoxFixed(int height) {
+        Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
+        if (pmChat == null) return; // Split private chat off or box not built yet
+        if (pmChat.getHeight() == height) return; // Already positioned
+        BetterResizableChatPlugin.setHeight(pmChat, height); // Must use literal width
+        BetterResizableChatPlugin.revalidateChildren(pmChat);
+    }
 }

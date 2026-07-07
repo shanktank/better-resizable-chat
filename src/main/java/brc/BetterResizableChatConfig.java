@@ -76,6 +76,30 @@ public interface BetterResizableChatConfig extends Config {
         return false;
     }
 
+    // Fixed mode settings
+
+    String FIXED_HEIGHT_CHANGE = "fixedHeightChange";
+
+    @ConfigSection(
+        name = "Fixed mode",
+        description = "Resize the chat box while in fixed (non-resizable) layout.",
+        position = 100
+    )
+    String fixedModeSection = "fixedMode";
+
+    @Units(Units.PIXELS)
+    @Range(min = -142)
+    @ConfigItem(
+        position = 101,
+        keyName = FIXED_HEIGHT_CHANGE,
+        name = "Height change",
+        description = "Grow or shrink the chat box height in fixed layout.",
+        section = fixedModeSection
+    )
+    default int fixedHeightChange() {
+        return 0;
+    }
+
     // Drag-resize settings
 
     String INDICATOR_COLOR = "indicatorColor";
@@ -85,12 +109,12 @@ public interface BetterResizableChatConfig extends Config {
     @ConfigSection(
         name = "Drag-resizing",
         description = "Resize the chat by holding a key and dragging its top or right border.",
-        position = 100
+        position = 200
     )
     String dragResizeSection = "Drag-resizing";
 
     @ConfigItem(
-        position = 101,
+        position = 201,
         keyName = INDICATOR_COLOR,
         name = "Indicator color",
         description = "Color of the draggable border highlight.",
@@ -101,7 +125,7 @@ public interface BetterResizableChatConfig extends Config {
     }
 
     @ConfigItem(
-        position = 102,
+        position = 202,
         keyName = DRAG_MODIFIER,
         name = "Drag key",
         description = "Hold to drag-resize the chat box. Unset to disable.",
@@ -112,7 +136,7 @@ public interface BetterResizableChatConfig extends Config {
     }
 
     @ConfigItem(
-        position = 103,
+        position = 203,
         keyName = LIVE_REWRAP,
         name = "Live re-wrap",
         description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
