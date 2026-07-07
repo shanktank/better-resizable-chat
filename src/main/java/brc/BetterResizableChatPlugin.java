@@ -2,8 +2,10 @@ package brc;
 
 import brc.drag.DragPreview;
 import brc.drag.DragResizer;
+import net.runelite.api.ChatLineBuffer;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.MessageNode;
 import net.runelite.api.ScriptID;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.CommandExecuted;
@@ -57,7 +59,7 @@ public class BetterResizableChatPlugin extends Plugin {
     private TopLevelModals mainModals;
     private ChatBackgroundGraphic bgGraphic;
     private ChatDialogBoxes dialogBoxes;
-    private PrivateMessageSplit pmSplit;
+    private PrivateMessageSplit privateSplit;
     private FixedModeChat fixedChat;
     private ChatScrollRetainer scrollKeep;
     private DragResizer dragResizer;
@@ -89,8 +91,8 @@ public class BetterResizableChatPlugin extends Plugin {
         mainModals = new TopLevelModals(client);
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
-        pmSplit = new PrivateMessageSplit(client, config);
-        fixedChat = new FixedModeChat(client, config, bgGraphic, pmSplit, dialogBoxes);
+        privateSplit = new PrivateMessageSplit(client, config);
+        fixedChat = new FixedModeChat(client, config, bgGraphic, privateSplit, dialogBoxes);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
@@ -126,11 +128,15 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     void onCommandExecuted(CommandExecuted event) {
-        if ("testpm".equals(event.getCommand())) { // Test add a private message
+        if ("testpm".equals(event.getCommand())) {
             String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q R S T U V W X Y Z";
             if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
             client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
             client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
+        } else if ("clearpm".equals(event.getCommand())) {
+            ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.MODPRIVATECHAT.getType());
+            for (MessageNode node : buffer.getLines().clone()) buffer.removeMessageNode(node); // removeMessageNode mutates the backing array, so clone
+            clientThread.invokeLater(() -> client.runScript(ScriptID.SPLITPM_CHANGED)); // Rebuilds both the chat box and the PM box
         }
     }
 
@@ -276,7 +282,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic.drawBorder(chatArea);
         bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
         dialogBoxes.centerDialogs(); // Some dialog interfaces need manual centering
-        pmSplit.resizePmBox(slotW);
+        privateSplit.resizePmBox(slotW);
 
         return new Dimension(slotW, slotH);
     }
@@ -303,7 +309,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic.resizeTabBar(0);
         bgGraphic.destroyBorder();
         bgGraphic.revertBakedSprite();
-        pmSplit.resizePmBox(null);
+        privateSplit.resizePmBox(null);
         revalidateChildren(universe);
         dialogBoxes.resetDialogPositions();
         hudAnchors.restore();
