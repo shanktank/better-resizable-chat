@@ -13,21 +13,23 @@ import java.awt.Color;
 public interface BetterResizableChatConfig extends Config {
     String GROUP = "betterresizablechat";
 
-    // General settings
+    // Resizable layout settings
 
     String HEIGHT_CHANGE = "heightChange";
     String WIDTH_CHANGE = "widthChange";
     String REWRAP_PRIVATE_CHAT = "rewrapPrivateChat";
-    String UNGROW_FOR_DIALOGS = "ungrowForDialogs";
-    String ADJUST_HUD_ANCHORS = "adjustHudAnchors";
+
+    @ConfigSection(name = "Resizable layout", description = "Settings for resizable layout.", position = 0)
+    String resizableLayoutSection = "resizableLayout";
 
     @Units(Units.PIXELS)
     @Range(min = -142)
     @ConfigItem(
-        position = 0,
+        position = 1,
         keyName = HEIGHT_CHANGE,
         name = "Height change",
-        description = "Add or subtract height to chat box."
+        description = "Add or subtract height to chat box in resizable layout.",
+        section = resizableLayoutSection
     )
     default int heightChange() {
         return 28;
@@ -36,56 +38,33 @@ public interface BetterResizableChatConfig extends Config {
     @Units(Units.PIXELS)
     @Range(min = -519)
     @ConfigItem(
-        position = 1,
+        position = 2,
         keyName = WIDTH_CHANGE,
         name = "Width change",
-        description = "Add or subtract width to chat box."
+        description = "Add or subtract width to chat box in resizable layout.",
+        section = resizableLayoutSection
     )
     default int widthChange() {
         return 80;
     }
 
     @ConfigItem(
-        position = 2,
+        position = 3,
         keyName = REWRAP_PRIVATE_CHAT,
         name = "Adjust private split width",
-        description = "Adjust width of private messages above the chat box to match adjusted chat."
+        description = "Adjust width of private messages above the chat box to match adjusted chat.",
+        section = resizableLayoutSection
     )
     default boolean rewrapPrivateChat() {
         return true;
     }
 
-    @ConfigItem(
-        position = 3,
-        keyName = UNGROW_FOR_DIALOGS,
-        name = "Revert size during dialogs",
-        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open."
-    )
-    default boolean ungrowForDialogs() {
-        return true;
-    }
-    
-    @ConfigItem(
-        position = 4,
-        keyName = ADJUST_HUD_ANCHORS,
-        name = "Adjust HUD snap anchors",
-        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
-                    + "EXPERIMENTAL: MAY CAUSE MINOR ISSUES WITH CENTER MODALS (bank, settings, etc)."
-    )
-    default boolean adjustHudAnchors() {
-        return false;
-    }
-
-    // Fixed mode settings
+    // Fixed layout settings
 
     String FIXED_HEIGHT_CHANGE = "fixedHeightChange";
 
-    @ConfigSection(
-        name = "Fixed mode",
-        description = "Resize the chat box while in fixed (non-resizable) layout.",
-        position = 100
-    )
-    String fixedModeSection = "fixedMode";
+    @ConfigSection(name = "Fixed layout", description = "Settings for fixed layout.", position = 100)
+    String fixedLayoutSection = "fixedLayout";
 
     @Units(Units.PIXELS)
     @Range(min = -142)
@@ -93,11 +72,42 @@ public interface BetterResizableChatConfig extends Config {
         position = 101,
         keyName = FIXED_HEIGHT_CHANGE,
         name = "Height change",
-        description = "Grow or shrink the chat box height in fixed layout.",
-        section = fixedModeSection
+        description = "Add or subtract height to chat box in fixed layout.",
+        section = fixedLayoutSection
     )
     default int fixedHeightChange() {
         return 0;
+    }
+
+    // Either layout settings
+
+    String UNGROW_FOR_DIALOGS = "ungrowForDialogs";
+    String ADJUST_HUD_ANCHORS = "adjustHudAnchors";
+
+    @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
+    String bothLayoutsSection = "bothLayouts";
+
+    @ConfigItem(
+        position = 201,
+        keyName = UNGROW_FOR_DIALOGS,
+        name = "Revert size during dialogs",
+        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open.",
+        section = bothLayoutsSection
+    )
+    default boolean ungrowForDialogs() {
+        return true;
+    }
+
+    @ConfigItem(
+        position = 202,
+        keyName = ADJUST_HUD_ANCHORS,
+        name = "Adjust HUD snap anchors",
+        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
+                    + "EXPERIMENTAL: MAY CAUSE MINOR ISSUES WITH CENTER MODALS (bank, settings, etc).",
+        section = bothLayoutsSection
+    )
+    default boolean adjustHudAnchors() {
+        return false;
     }
 
     // Drag-resize settings
@@ -106,15 +116,11 @@ public interface BetterResizableChatConfig extends Config {
     String DRAG_MODIFIER = "dragModifier";
     String LIVE_REWRAP = "liveRewrap";
 
-    @ConfigSection(
-        name = "Drag-resizing",
-        description = "Resize the chat by holding a key and dragging its top or right border.",
-        position = 200
-    )
+    @ConfigSection(name = "Drag-resizing", description = "Hold a key and drag a border to resize chat.", position = 300)
     String dragResizeSection = "Drag-resizing";
 
     @ConfigItem(
-        position = 201,
+        position = 301,
         keyName = INDICATOR_COLOR,
         name = "Indicator color",
         description = "Color of the draggable border highlight.",
@@ -125,7 +131,7 @@ public interface BetterResizableChatConfig extends Config {
     }
 
     @ConfigItem(
-        position = 202,
+        position = 302,
         keyName = DRAG_MODIFIER,
         name = "Drag key",
         description = "Hold to drag-resize the chat box. Unset to disable.",
@@ -136,7 +142,7 @@ public interface BetterResizableChatConfig extends Config {
     }
 
     @ConfigItem(
-        position = 203,
+        position = 303,
         keyName = LIVE_REWRAP,
         name = "Live re-wrap",
         description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
