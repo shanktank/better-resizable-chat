@@ -93,7 +93,7 @@ public class BetterResizableChatPlugin extends Plugin {
         bgGraphic = new ChatBackgroundGraphic(client);
         dialogBoxes = new ChatDialogBoxes(client);
         privateSplit = new PrivateMessageSplit(client, config);
-        fixedChat = new FixedModeChat(client, config, bgGraphic, privateSplit, dialogBoxes);
+        fixedChat = new FixedModeChat(client, config, bgGraphic, privateSplit, dialogBoxes, mainModals);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
@@ -122,6 +122,7 @@ public class BetterResizableChatPlugin extends Plugin {
                 mainModals.relayout();
             } else {
                 fixedChat.restore();
+                if (mainModals.isTopLevelModalOpen()) mainModals.relayout(); // Re-fit an open modal back to the stock band
             }
             scrollKeep.sync();
         });
@@ -220,6 +221,8 @@ public class BetterResizableChatPlugin extends Plugin {
             dragResizer.setLastDragSize(null);
         }
         wasDragging = dragging;
+
+        if (!dragging && fixedChat.consumeRelayoutNeeded()) mainModals.relayout(); // Fixed layout: the viewport band changed under an open modal
 
         scrollKeep.sync(); // Single preservation here
 

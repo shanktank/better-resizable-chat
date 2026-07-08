@@ -33,18 +33,24 @@ public class FixedModeChat {
     private final ChatBackgroundGraphic bgGraphic;
     private final PrivateMessageSplit pmSplit;
     private final ChatDialogBoxes dialogBoxes;
+    private final TopLevelModals mainModals;
+
+    private int lastTargetY = STOCK_Y;
+    private boolean relayoutNeeded; // The viewport band changed under an open modal
 
     @Getter @Setter private boolean collapsed; // Chat collapsed to just the tab bar via clicking the open chat tab
 
     FixedModeChat(
         Client client, BetterResizableChatConfig config,
-        ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit, ChatDialogBoxes dialogBoxes
+        ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit,
+        ChatDialogBoxes dialogBoxes, TopLevelModals mainModals
     ) {
         this.client = client;
         this.config = config;
         this.bgGraphic = bgGraphic;
         this.pmSplit = pmSplit;
         this.dialogBoxes = dialogBoxes;
+        this.mainModals = mainModals;
     }
 
     // Returns the applied slot size, or null if not in fixed layout / widgets missing
@@ -56,16 +62,24 @@ public class FixedModeChat {
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
 
-        // Shrink/grow to stock height while chat overlay is open
         int heightChange = effectiveHeightChange();
+        if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
+
+        // Shrink/grow to stock height while chat overlay is open
         if (dialogBoxes.isDialogOpen()) {
-            if (heightChange < 0) heightChange = 0; // Unshrink: a shrunk chat would clip the dialog
-            if (config.ungrowForDialogs() && heightChange > 0) heightChange = 0; // Ungrow back to stock
+            if (heightChange < 0) heightChange = 0;
+            if (config.ungrowForDialogs() && heightChange > 0) heightChange = 0;
         }
 
         // Clamp height to [tab bar, full frame]; bottom edge stays pinned, top grows up toward 0
         int targetH = Math.min(STOCK_BOTTOM, Math.max(TAB_BAR_H, STOCK_H + heightChange));
         int targetY = STOCK_BOTTOM - targetH;
+
+        if (targetY != lastTargetY) {
+            lastTargetY = targetY;
+            if (mainModals.isTopLevelModalOpen()) relayoutNeeded = true; // Modal must re-fit to the changed band
+        }
+
         int backgroundH = targetH - TAB_BAR_H; // Background/chat-area height (excludes the tab bar)
         int mainH = Math.max(STOCK_MAIN_H, targetY - MAIN_TOP); // Extend the viewport down to the chat when shrunk
         int pmH = targetY - MAIN_TOP; // Split-PM box height so its bottom lands at the chat top
@@ -95,9 +109,18 @@ public class FixedModeChat {
         return new Dimension(STOCK_W, targetH);
     }
 
+    // True once when the viewport band has changed under an open modal
+    boolean consumeRelayoutNeeded() {
+        boolean needed = relayoutNeeded;
+        relayoutNeeded = false;
+        return needed;
+    }
+
     // Revert to stock using absolute universe, next engine chatbox rebuild fully restore native mode
     void restore() {
         collapsed = false;
+        lastTargetY = STOCK_Y;
+        relayoutNeeded = false;
         Widget slot = client.getWidget(InterfaceID.Toplevel.CHAT_CONTAINER);
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (slot != null && !isStock(slot, universe)) sizeChat(slot, universe, STOCK_Y, STOCK_H);

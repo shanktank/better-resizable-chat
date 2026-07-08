@@ -20,9 +20,10 @@ public class TopLevelModals {
     };
 
     private static final int RESIZE_SCRIPT = 904; // onResize handler of the toplevel CONTROL widget
-    private static final int[][] CONTROL_ARG = { // Toplevel variants for resizable layout and the appropriate argument
-        { InterfaceID.ToplevelPreEoc.CONTROL,      1131 }, // 164
+    private static final int[][] CONTROL_ARG = { // Toplevel variants and the layout enum the script expects
+        { InterfaceID.Toplevel.CONTROL,            1129 }, // 548, fixed
         { InterfaceID.ToplevelOsrsStretch.CONTROL, 1130 }, // 161
+        { InterfaceID.ToplevelPreEoc.CONTROL,      1131 }, // 164
     };
 
     private final Client client;
