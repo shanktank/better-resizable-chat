@@ -9,6 +9,7 @@ import net.runelite.api.MessageNode;
 import net.runelite.api.ScriptID;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.CommandExecuted;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.ResizeableChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
@@ -145,6 +146,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
         clientThread.invoke(() -> {
             scrollKeep.sync();
+            if (!config.fixedTabCollapse()) fixedChat.setCollapsed(false); // Don't leave chat stuck collapsed when disabled
             apply(true);
             if (client.isResized()) {
                 client.runScript(REWRAPS_CHAT_SCRIPT);
@@ -152,6 +154,12 @@ public class BetterResizableChatPlugin extends Plugin {
             }
             scrollKeep.sync();
         });
+    }
+
+    // Show or hide chat in fixed layout when active chat tab button is clicked
+    @Subscribe
+    private void onMenuOptionClicked(MenuOptionClicked event) {
+        fixedChat.onMenuOptionClicked(event);
     }
 
     @Subscribe
@@ -187,6 +195,7 @@ public class BetterResizableChatPlugin extends Plugin {
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
         boolean dragging = dragResizer.isDragging();
+        if (dragging && !wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
         if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
             // Chat overlay or toplevel modal just opened or closed
             clientThread.invokeLater(() -> { // Redraw is smooth when done in client thread
@@ -333,7 +342,7 @@ public class BetterResizableChatPlugin extends Plugin {
     // True if a dialog opening/closing would temporarily unshrink or ungrow the chat in the current layout
     private boolean dialogAdjustsSize() {
         if (!client.isResized()) {
-            int h = config.fixedHeightChange();
+            int h = fixedChat.effectiveHeightChange();
             return h < 0 || (config.ungrowForDialogs() && h > 0);
         } else {
             int w = config.widthChange(), h = config.heightChange();

@@ -62,6 +62,7 @@ public interface BetterResizableChatConfig extends Config {
     // Fixed layout settings
 
     String FIXED_HEIGHT_CHANGE = "fixedHeightChange";
+    String FIXED_TAB_COLLAPSE = "fixedTabCollapse";
 
     @ConfigSection(name = "Fixed layout", description = "Settings for fixed layout.", position = 100)
     String fixedLayoutSection = "fixedLayout";
@@ -77,6 +78,17 @@ public interface BetterResizableChatConfig extends Config {
     )
     default int fixedHeightChange() {
         return 0;
+    }
+
+    @ConfigItem(
+        position = 102,
+        keyName = FIXED_TAB_COLLAPSE,
+        name = "Hideable chat",
+        description = "Click the open chat tab to hide chat, like in resizable layout.<br>",
+        section = fixedLayoutSection
+    )
+    default boolean fixedTabCollapse() {
+        return true;
     }
 
     // Either layout settings

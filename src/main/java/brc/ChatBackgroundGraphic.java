@@ -201,4 +201,10 @@ public class ChatBackgroundGraphic {
     private static int tabTargetX(int i, int dw, int n) {
         return DEFAULT_TAB_X[i] + dw * (n - i) / n;
     }
+
+    // Tab index of a chat tab button's component id (equals its varc CHAT_VIEW value), or -1 if not a chat tab
+    static int tabIndexOf(int componentId) {
+        for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) if (CHAT_TAB_BUTTONS[i] == componentId) return i;
+        return -1;
+    }
 }

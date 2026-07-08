@@ -1,9 +1,13 @@
 package brc;
 
 import net.runelite.api.Client;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
+import lombok.Getter;
+import lombok.Setter;
 import java.awt.Dimension;
 
 public class FixedModeChat {
@@ -21,14 +25,21 @@ public class FixedModeChat {
     private static final int RIGHT_BORDER_TOP = 205;
     private static final int RIGHT_BORDER_H = 133;
 
+    // Value of menu option when a chat tab is left-clicked, use as marker for hiding/unhiding chat
+    private static final String SWITCH_TAB = "Switch tab";
+
     private final Client client;
     private final BetterResizableChatConfig config;
     private final ChatBackgroundGraphic bgGraphic;
     private final PrivateMessageSplit pmSplit;
     private final ChatDialogBoxes dialogBoxes;
 
-    FixedModeChat(Client client, BetterResizableChatConfig config, ChatBackgroundGraphic bgGraphic,
-                  PrivateMessageSplit pmSplit, ChatDialogBoxes dialogBoxes) {
+    @Getter @Setter private boolean collapsed; // Chat collapsed to just the tab bar via clicking the open chat tab
+
+    FixedModeChat(
+        Client client, BetterResizableChatConfig config,
+        ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit, ChatDialogBoxes dialogBoxes
+    ) {
         this.client = client;
         this.config = config;
         this.bgGraphic = bgGraphic;
@@ -46,7 +57,7 @@ public class FixedModeChat {
         if (chatArea == null) return null;
 
         // Shrink/grow to stock height while chat overlay is open
-        int heightChange = config.fixedHeightChange();
+        int heightChange = effectiveHeightChange();
         if (dialogBoxes.isDialogOpen()) {
             if (heightChange < 0) heightChange = 0; // Unshrink: a shrunk chat would clip the dialog
             if (config.ungrowForDialogs() && heightChange > 0) heightChange = 0; // Ungrow back to stock
@@ -84,6 +95,7 @@ public class FixedModeChat {
 
     // Revert to stock using absolute universe, next engine chatbox rebuild fully restore native mode
     void restore() {
+        collapsed = false;
         Widget slot = client.getWidget(InterfaceID.Toplevel.CHAT_CONTAINER);
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (slot != null && !isStock(slot, universe)) sizeChat(slot, universe, STOCK_Y, STOCK_H);
@@ -94,7 +106,19 @@ public class FixedModeChat {
         bgGraphic.destroyBorder();
     }
 
-    boolean isStock(Widget slot, Widget universe) {
+    // Show or hide chat in fixed layout when active chat tab button is clicked
+    void onMenuOptionClicked(MenuOptionClicked event) {
+        if (client.isResized() || !config.fixedTabCollapse() || !event.getMenuOption().equals(SWITCH_TAB)) return;
+        int tab = ChatBackgroundGraphic.tabIndexOf(event.getParam1()); // Param1 is the clicked widget's component id
+        if (tab != -1) setCollapsed(!isCollapsed() && tab == client.getVarcIntValue(VarClientID.CHAT_VIEW));
+    }
+
+    // Height change before dialog adjustments: config value, or full shrink while tab-collapsed
+    int effectiveHeightChange() {
+        return collapsed ? -BetterResizableChatPlugin.CHATBOX_SPRITE_H : config.fixedHeightChange();
+    }
+
+    private static boolean isStock(Widget slot, Widget universe) {
         return slot.getOriginalY() == STOCK_Y && slot.getOriginalHeight() == STOCK_H
             && (universe == null || (universe.getWidth() == STOCK_W && universe.getHeight() == STOCK_H));
     }
