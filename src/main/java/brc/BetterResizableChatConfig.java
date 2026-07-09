@@ -1,5 +1,6 @@
 package brc;
 
+import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -107,12 +108,25 @@ public interface BetterResizableChatConfig extends Config {
 
     String UNGROW_FOR_DIALOGS = "ungrowForDialogs";
     String ADJUST_HUD_ANCHORS = "adjustHudAnchors";
+    String TOGGLE_SHOW_CHAT = "toggleShowChat";
 
     @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
     String bothLayoutsSection = "bothLayouts";
 
     @ConfigItem(
         position = 201,
+        keyName = TOGGLE_SHOW_CHAT,
+        name = "Toggle chat",
+        description = "Press to hide or unhide the chat box.<br>"
+                    + "In fixed layout, this requires 'Hideable chat' to be enabled.",
+        section = bothLayoutsSection
+    )
+    default Keybind toggleShowChat() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+        position = 202,
         keyName = UNGROW_FOR_DIALOGS,
         name = "Revert size during dialogs",
         description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open.",
@@ -123,7 +137,7 @@ public interface BetterResizableChatConfig extends Config {
     }
 
     @ConfigItem(
-        position = 202,
+        position = 203,
         keyName = ADJUST_HUD_ANCHORS,
         name = "Adjust HUD snap anchors",
         description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
@@ -145,28 +159,17 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 301,
-        keyName = INDICATOR_COLOR,
-        name = "Indicator color",
-        description = "Color of the draggable border highlight.",
+        keyName = DRAG_MODIFIER,
+        name = "Keybind",
+        description = "Hold to resize chat by dragging its borders with the cursor. Unset to disable.",
         section = dragResizeSection
     )
-    default Color indicatorColor() {
-        return Color.GREEN;
+    default Keybind dragModifier() {
+        return Keybind.NOT_SET;
     }
 
     @ConfigItem(
         position = 302,
-        keyName = DRAG_MODIFIER,
-        name = "Drag key",
-        description = "Hold to drag-resize the chat box. Unset to disable.",
-        section = dragResizeSection
-    )
-    default Keybind dragModifier() {
-        return Keybind.CTRL;
-    }
-
-    @ConfigItem(
-        position = 303,
         keyName = LIVE_REWRAP,
         name = "Live re-wrap",
         description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
@@ -175,5 +178,17 @@ public interface BetterResizableChatConfig extends Config {
     )
     default boolean liveRewrap() {
         return true;
+    }
+
+    @Alpha
+    @ConfigItem(
+        position = 303,
+        keyName = INDICATOR_COLOR,
+        name = "Indicator color",
+        description = "Color of the draggable border highlight. The opacity is used as a base value.",
+        section = dragResizeSection
+    )
+    default Color indicatorColor() {
+        return Color.GREEN;
     }
 }

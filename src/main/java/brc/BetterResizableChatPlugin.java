@@ -5,6 +5,7 @@ import brc.drag.DragResizer;
 import net.runelite.api.ChatLineBuffer;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.MessageNode;
 import net.runelite.api.ScriptID;
 import net.runelite.api.events.BeforeRender;
@@ -15,6 +16,7 @@ import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
@@ -28,6 +30,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import net.runelite.client.util.HotkeyListener;
 import com.google.inject.Provides;
 import java.awt.Dimension;
 import javax.inject.Inject;
@@ -35,13 +38,16 @@ import javax.inject.Inject;
 @PluginDescriptor(
     name = "Chat Resizer",
     description = "Resize chat box in resizable or fixed layout.",
-    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable", "scale", "stretch", "width", "height", "ui", "better", "fixed"},
+    tags = {"chat", "chatbox", "private", "message", "extend", "resize", "resizable", "resizeable",
+            "scale", "stretch", "width", "height", "ui", "better", "fixed", "hide", "toggle"},
     conflicts = {"Resizable Chat", "Fixed Mode Hide Chat"}
 )
 public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
     private static final int RESIZES_CHAT_SCRIPT = 924;
     private static final int REWRAPS_CHAT_SCRIPT = 663;
+    private static final int CHAT_BUTTON_ONOP_SCRIPT = 175; // Handles clicks on the chat tab stones
+    private static final int COLLAPSED_TAB = 1337; // CHAT_VIEW sentinel for chat collapsed in resizable layout
 
     public static final int CHATBOX_SPRITE_W = 519;
     public static final int CHATBOX_SPRITE_H = 142;
@@ -65,7 +71,13 @@ public class BetterResizableChatPlugin extends Plugin {
     private ChatScrollRetainer scrollKeep;
     private DragResizer dragResizer;
     private DragPreview dragPreview;
+
     private boolean wasDragging;
+    private int lastOpenTab;
+
+    private final HotkeyListener hideChatHotkey = new HotkeyListener(() -> config.toggleShowChat()) {
+        @Override public void hotkeyPressed() { clientThread.invoke(BetterResizableChatPlugin.this::toggleChatHidden); }
+    };
 
     @Provides
     private BetterResizableChatConfig provideConfig(ConfigManager configManager) {
@@ -98,6 +110,7 @@ public class BetterResizableChatPlugin extends Plugin {
         dragResizer = new DragResizer(config, configManager);
         dragPreview = new DragPreview(dragResizer, config, tooltipManager);
 
+        keyManager.registerKeyListener(hideChatHotkey);
         dragResizer.migrateDragModifier();
         keyManager.registerKeyListener(dragResizer.getKeyListener());
         mouseManager.registerMouseListener(dragResizer);
@@ -108,10 +121,10 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Override
     protected void shutDown() {
+        keyManager.unregisterKeyListener(hideChatHotkey);
         keyManager.unregisterKeyListener(dragResizer.getKeyListener());
         mouseManager.unregisterMouseListener(dragResizer);
         overlayManager.remove(dragPreview);
-
         dragResizer.reset();
 
         clientThread.invoke(() -> {
@@ -333,6 +346,29 @@ public class BetterResizableChatPlugin extends Plugin {
         hudAnchors.restore();
     }
 
+    // Hide or unhide chat on keybind
+    private void toggleChatHidden() {
+        if (client.getGameState() != GameState.LOGGED_IN) return;
+        if (client.isResized()) {
+            int tab = client.getVarcIntValue(VarClientID.CHAT_VIEW);
+            if (tab != COLLAPSED_TAB) lastOpenTab = tab; // Save/restore the tab that was open before hiding with keybind
+            client.runScript(CHAT_BUTTON_ONOP_SCRIPT, 1, lastOpenTab);
+        } else { // Fixed layout
+            if (config.fixedTabCollapse()) fixedChat.setCollapsed(!fixedChat.isCollapsed());
+        }
+    }
+
+    // True if a dialog opening/closing would temporarily unshrink or ungrow the chat in the current layout
+    private boolean dialogAdjustsSize() {
+        if (!client.isResized()) {
+            int h = fixedChat.effectiveHeightChange();
+            return h < 0 || (config.ungrowForDialogs() && h > 0);
+        } else {
+            int w = config.widthChange(), h = config.heightChange();
+            return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
+        }
+    }
+
     static void revalidateChildren(Widget widget) {
         revalidateAll(widget.getStaticChildren());
         revalidateAll(widget.getDynamicChildren());
@@ -345,17 +381,6 @@ public class BetterResizableChatPlugin extends Plugin {
             child.revalidate();
             if (child.getId() == InterfaceID.Chatbox.SCROLLAREA) continue; // Gets handled for us
             revalidateChildren(child);
-        }
-    }
-
-    // True if a dialog opening/closing would temporarily unshrink or ungrow the chat in the current layout
-    private boolean dialogAdjustsSize() {
-        if (!client.isResized()) {
-            int h = fixedChat.effectiveHeightChange();
-            return h < 0 || (config.ungrowForDialogs() && h > 0);
-        } else {
-            int w = config.widthChange(), h = config.heightChange();
-            return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
         }
     }
 

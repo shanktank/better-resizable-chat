@@ -14,11 +14,6 @@ import java.awt.Rectangle;
 
 // Highlight draggable areas on top and right chat box borders
 public final class DragPreview extends Overlay {
-    private static final int FILL_ALPHA = 50;
-    private static final int EDGE_ALPHA = 200;
-    private static final int FILL_HOVER_ALPHA = 150;
-    private static final int EDGE_HOVER_ALPHA = 255;
-
     private final DragResizer drag;
     private final TooltipManager tooltipManager; // RuneLite's built-in tooltip manager
     private final BetterResizableChatConfig config;
@@ -38,13 +33,11 @@ public final class DragPreview extends Overlay {
         Color c = config.indicatorColor();
         if (c.equals(base)) return;
         base = c;
-        int r = c.getRed();
-        int gn = c.getGreen();
-        int bl = c.getBlue();
-        fill = new Color(r, gn, bl, FILL_ALPHA);
-        edge = new Color(r, gn, bl, EDGE_ALPHA);
-        fillHover = new Color(r, gn, bl, FILL_HOVER_ALPHA);
-        edgeHover = new Color(r, gn, bl, EDGE_HOVER_ALPHA);
+        int r = c.getRed(), g = c.getGreen(), b = c.getBlue(), a = c.getAlpha();
+        fill = new Color(r, g, b, a / 5); // 20% of alpha value for band when not hovered
+        edge = new Color(r, g, b, a * 4 / 5); // 80% of alpha value for edges when not hovered
+        fillHover = new Color(r, g, b, a * 3 / 5); // 60% of alpha value for band when hovered
+        edgeHover = new Color(r, g, b, a); // Full alpha value for edges when hovered
     }
 
     @Override
