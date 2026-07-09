@@ -81,7 +81,8 @@ public class FixedModeChat {
         }
 
         int backgroundH = targetH - TAB_BAR_H; // Background/chat-area height (excludes the tab bar)
-        int mainH = Math.max(STOCK_MAIN_H, targetY - MAIN_TOP); // Extend the viewport down to the chat when shrunk
+        int minViewH = config.fixedAdjustViewport() ? 0 : STOCK_MAIN_H; // Handle chat height above stock
+        int mainH = Math.max(minViewH, targetY - MAIN_TOP); // Used for adjusting viewport/anchors
         int pmH = targetY - MAIN_TOP; // Split-PM box height so its bottom lands at the chat top
 
         Widget main = client.getWidget(InterfaceID.Toplevel.MAIN);
@@ -95,7 +96,7 @@ public class FixedModeChat {
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/rebuild
             extendViewportBorders(targetY); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
-            sizeHudAnchor(targetY);
+            sizeHudAnchor(targetY, mainH);
             return new Dimension(STOCK_W, targetH);
         }
 
@@ -105,7 +106,7 @@ public class FixedModeChat {
         bgGraphic.drawBorder(chatArea);
         bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
         pmSplit.resizePmBoxFixed(pmH);
-        sizeHudAnchor(targetY);
+        sizeHudAnchor(targetY, mainH);
         return new Dimension(STOCK_W, targetH);
     }
 
@@ -127,7 +128,7 @@ public class FixedModeChat {
         sizeViewport(client.getWidget(InterfaceID.Toplevel.MAIN), STOCK_MAIN_H);
         extendViewportBorders(STOCK_Y); // Reset side borders to stock
         pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP);
-        sizeHudAnchor(STOCK_Y);
+        sizeHudAnchor(STOCK_Y, STOCK_MAIN_H);
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();
     }
@@ -153,7 +154,6 @@ public class FixedModeChat {
         slot.setOriginalY(y);
         slot.setOriginalHeight(h);
         slot.revalidate();
-
         if (universe == null) return;
         universe.setSize(STOCK_W, h, WidgetSizeMode.ABSOLUTE, WidgetSizeMode.ABSOLUTE);
         universe.revalidate();
@@ -184,11 +184,11 @@ public class FixedModeChat {
         border.revalidate();
     }
 
-    // Adjust RuneLite anchors to follow positive height changes (negative handled inherently when adjusting viewport)
-    private void sizeHudAnchor(int targetY) {
+    // Anchors follow the actual viewport; adjustHudAnchors additionally tracks a grown chat drawn over a stock viewport
+    private void sizeHudAnchor(int targetY, int mainH) {
         Widget hud = client.getWidget(InterfaceID.Toplevel.OVERLAY_HUD);
         if (hud == null) return;
-        int h = config.adjustHudAnchors() ? Math.max(0, targetY - MAIN_TOP) : Math.max(STOCK_MAIN_H, targetY - MAIN_TOP);
+        int h = config.adjustHudAnchors() ? Math.max(0, targetY - MAIN_TOP) : mainH;
         if (hud.getHeight() == h) return;
         BetterResizableChatPlugin.setHeight(hud, h); // Must use literal height
         BetterResizableChatPlugin.revalidateChildren(hud);

@@ -63,6 +63,7 @@ public interface BetterResizableChatConfig extends Config {
 
     String FIXED_HEIGHT_CHANGE = "fixedHeightChange";
     String FIXED_TAB_COLLAPSE = "fixedTabCollapse";
+    String FIXED_ADJUST_VIEWPORT = "fixedAdjustViewport";
 
     @ConfigSection(name = "Fixed layout", description = "Settings for fixed layout.", position = 100)
     String fixedLayoutSection = "fixedLayout";
@@ -84,11 +85,22 @@ public interface BetterResizableChatConfig extends Config {
         position = 102,
         keyName = FIXED_TAB_COLLAPSE,
         name = "Hideable chat",
-        description = "Click the open chat tab to hide chat, like in resizable layout.<br>",
+        description = "Click the open chat tab to hide chat, like in resizable layout.",
         section = fixedLayoutSection
     )
     default boolean fixedTabCollapse() {
         return true;
+    }
+
+    @ConfigItem(
+        position = 103,
+        keyName = FIXED_ADJUST_VIEWPORT,
+        name = "Adjust camera on grow",
+        description = "Keep the player centered in the viewport for positive height change values.",
+        section = fixedLayoutSection
+    )
+    default boolean fixedAdjustViewport() {
+        return false;
     }
 
     // Either layout settings
