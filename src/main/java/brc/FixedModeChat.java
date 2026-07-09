@@ -1,6 +1,7 @@
 package brc;
 
 import net.runelite.api.Client;
+import net.runelite.api.WidgetNode;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
@@ -171,11 +172,25 @@ public class FixedModeChat {
     }
 
     // Grow/shrink the 3D viewport container so a shrunk chat exposes game instead of a black band
-    private static void sizeViewport(Widget main, int h) {
+    private void sizeViewport(Widget main, int h) {
         if (main == null || main.getOriginalHeight() == h) return;
         main.setOriginalHeight(h);
         main.revalidate();
         BetterResizableChatPlugin.revalidateChildren(main); // Reflow the viewport + in-scene overlays
+        sizeAtmosphere();
+    }
+
+    // Resize atmosphere overlays to cover newly added viewport area
+    private void sizeAtmosphere() {
+        Widget slot = client.getWidget(InterfaceID.Toplevel.OVERLAY_ATMOSPHERE);
+        if (slot == null) return; // Current area has no tint
+        WidgetNode mounted = client.getComponentTable().get(InterfaceID.Toplevel.OVERLAY_ATMOSPHERE);
+        if (mounted == null) return; // Current area has no tint
+        Widget root = client.getWidget(mounted.getId(), 0);
+        if (root == null) return;
+        BetterResizableChatPlugin.setWidth(root, slot.getWidth());
+        BetterResizableChatPlugin.setHeight(root, slot.getHeight());
+        BetterResizableChatPlugin.revalidateChildren(root); // Nested tint layers follow the root
     }
 
     // Extend the viewport's left/right border sprites down to the chat top
