@@ -46,12 +46,13 @@ public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
     private static final int RESIZES_CHAT_SCRIPT = 924;
     private static final int REWRAPS_CHAT_SCRIPT = 663;
-    private static final int CHAT_BUTTON_ONOP_SCRIPT = 175; // Handles clicks on the chat tab stones
-    private static final int COLLAPSED_TAB = 1337; // CHAT_VIEW sentinel for chat collapsed in resizable layout
+    private static final int CHAT_TAB_CLICKED_SCRIPT = 175; // Handles clicks on the chat tab buttons
 
     public static final int CHATBOX_SPRITE_W = 519;
     public static final int CHATBOX_SPRITE_H = 142;
     public static final int CHATBOX_SLOT_H = 165; // Chat box plus tabs bar
+
+    private static final int COLLAPSED_TAB = 1337; // ID of collapsed chat "tab" in resizable layout
 
     @Inject private Client client;
     @Inject private ClientThread clientThread;
@@ -352,7 +353,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if (client.isResized()) {
             int tab = client.getVarcIntValue(VarClientID.CHAT_VIEW);
             if (tab != COLLAPSED_TAB) lastOpenTab = tab; // Save/restore the tab that was open before hiding with keybind
-            client.runScript(CHAT_BUTTON_ONOP_SCRIPT, 1, lastOpenTab);
+            client.runScript(CHAT_TAB_CLICKED_SCRIPT, 1, lastOpenTab);
         } else { // Fixed layout
             if (config.fixedTabCollapse()) fixedChat.setCollapsed(!fixedChat.isCollapsed());
         }

@@ -41,7 +41,7 @@ public final class DragResizer extends MouseAdapter {
             @Override public void keyTyped(KeyEvent e) {}
             @Override public void keyPressed(KeyEvent e) { if (config.dragModifier().matches(e)) modifierHeld = true; }
             @Override public void keyReleased(KeyEvent e) { if (config.dragModifier().matches(e)) modifierHeld = false; }
-            @Override public void focusLost() { modifierHeld = false; } // Window blur (alt-tab while held) would otherwise stick it on
+            @Override public void focusLost() { modifierHeld = false; dragging = false; }
         };
     }
 
