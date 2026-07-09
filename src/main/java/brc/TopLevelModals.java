@@ -56,8 +56,31 @@ public class TopLevelModals {
             Widget control = client.getWidget(ca[0]);
             if (control != null && !control.isHidden()) {
                 client.runScript(RESIZE_SCRIPT, control.getId(), ca[1]);
+                realignMounted();
                 return;
             }
         }
     }
+
+    // Re-align each mounted modal's root to its slot; revalidates and the resize script don't cross
+    // the nested-group boundary, so modals that size themselves off their own root (All Settings
+    // polls it on a timer, unlike the bank which polls the slot) keep their mount-time size
+    private void realignMounted() {
+        HashTable<WidgetNode> componentTable = client.getComponentTable();
+        for (int slotId : MODAL_SLOTS) {
+            WidgetNode mounted = componentTable.get(slotId);
+            if (mounted == null) continue;
+            Widget slot = client.getWidget(slotId);
+            if (slot == null) continue;
+            Widget root = client.getWidget(mounted.getId(), 0);
+            if (root == null || (root.getWidth() == slot.getWidth() && root.getHeight() == slot.getHeight())) continue;
+            BetterResizableChatPlugin.setWidth(root, slot.getWidth());
+            BetterResizableChatPlugin.setHeight(root, slot.getHeight());
+            BetterResizableChatPlugin.revalidateChildren(root);
+        }
+    }
+    // Makes the flicker from temp-shrinking chat height when opening bank in resizable layout go away
+    // *Introduces* the abovementioned flicker when temp-shrinking chat height when opening bank in fixed layout
+    // All Settings modal now refits itself when chat height is temp-shrunk in fixed layout, but introduces same flicker as above
+    // All Settings modal still does not use extra available space when chat height is below stock in resizable layout
 }
