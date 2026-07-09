@@ -37,6 +37,7 @@ public class FixedModeChat {
 
     private int lastTargetY = STOCK_Y;
     private boolean relayoutNeeded; // The viewport band changed under an open modal
+    private boolean rebuildNeeded; // Chat height changed; lines keep stale positions until a chatbox rebuild
 
     @Getter @Setter private boolean collapsed; // Chat collapsed to just the tab bar via clicking the open chat tab
 
@@ -77,6 +78,7 @@ public class FixedModeChat {
 
         if (targetY != lastTargetY) {
             lastTargetY = targetY;
+            rebuildNeeded = true;
             if (mainModals.isTopLevelModalOpen()) relayoutNeeded = true; // Modal must re-fit to the changed band
         }
 
@@ -117,11 +119,19 @@ public class FixedModeChat {
         return needed;
     }
 
+    // True once when the chat height has changed and lines need re-laying out
+    boolean consumeRebuildNeeded() {
+        boolean needed = rebuildNeeded;
+        rebuildNeeded = false;
+        return needed;
+    }
+
     // Revert to stock using absolute universe, next engine chatbox rebuild fully restore native mode
     void restore() {
         collapsed = false;
         lastTargetY = STOCK_Y;
         relayoutNeeded = false;
+        rebuildNeeded = false;
         Widget slot = client.getWidget(InterfaceID.Toplevel.CHAT_CONTAINER);
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (slot != null && !isStock(slot, universe)) sizeChat(slot, universe, STOCK_Y, STOCK_H);

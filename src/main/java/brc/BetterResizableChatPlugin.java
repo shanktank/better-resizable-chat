@@ -122,6 +122,7 @@ public class BetterResizableChatPlugin extends Plugin {
                 mainModals.relayout();
             } else {
                 fixedChat.restore();
+                client.refreshChat(); // Re-anchor lines to the restored stock height
                 if (mainModals.isTopLevelModalOpen()) mainModals.relayout(); // Re-fit an open modal back to the stock band
             }
             scrollKeep.sync();
@@ -222,7 +223,10 @@ public class BetterResizableChatPlugin extends Plugin {
         }
         wasDragging = dragging;
 
-        if (!dragging && fixedChat.consumeRelayoutNeeded()) mainModals.relayout(); // Fixed layout: the viewport band changed under an open modal
+        // Fixed layout: the viewport band changed under an open modal
+        if (!dragging && fixedChat.consumeRelayoutNeeded()) mainModals.relayout();
+        // Fixed layout: rebuild the chatbox after a height change so lines re-anchor to the bottom
+        if (!client.isResized() && (!dragging || config.liveRewrap()) && fixedChat.consumeRebuildNeeded()) client.refreshChat();
 
         scrollKeep.sync(); // Single preservation here
 
