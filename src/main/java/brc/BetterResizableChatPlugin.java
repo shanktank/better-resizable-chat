@@ -166,7 +166,10 @@ public class BetterResizableChatPlugin extends Plugin {
             apply(true);
             if (client.isResized()) {
                 client.runScript(REWRAPS_CHAT_SCRIPT);
-                if (event.getKey().equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen()) mainModals.relayout(); // Re-fit bank
+                String key = event.getKey();
+                if (key.equals(BetterResizableChatConfig.WIDTH_CHANGE) || (key.equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen())) {
+                    mainModals.relayout(); // Re-fit bank, restack modern layout's inventory tabs
+                }
             }
             scrollKeep.sync();
         });
