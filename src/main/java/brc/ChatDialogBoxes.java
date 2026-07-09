@@ -31,10 +31,13 @@ public class ChatDialogBoxes {
         // Message-layer text inputs, built into Chatbox.MES_LAYER rather than opening a sub-interface
         if (client.getVarcIntValue(VarClientID.MESLAYERMODE) != InputType.NONE.getType()) return true;
 
+        // Detect RuneLite text input prompts (e.g. quest search) since they don't fire VarClientIntChanged on creation
+        Widget mesLayer = client.getWidget(InterfaceID.Chatbox.MES_LAYER);
+        if (mesLayer != null && !mesLayer.isHidden()) return true;
+
         // Any sub-interface opened into a chatbox-group component, keyed on mount slot
-        for (WidgetNode node : client.getComponentTable()) {
+        for (WidgetNode node : client.getComponentTable())
             if (WidgetUtil.componentToInterface((int) node.getHash()) == CHATBOX_GROUP) return true;
-        }
 
         return false;
     }

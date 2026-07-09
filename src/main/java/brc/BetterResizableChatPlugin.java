@@ -191,7 +191,9 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onScriptPostFired(ScriptPostFired event) {
-        if (event.getScriptId() == ScriptID.TOPLEVEL_REDRAW) apply(false); // Fires when switching tabs on Character Summary tab, resets background
+        int id = event.getScriptId();
+        if (id == ScriptID.TOPLEVEL_REDRAW) apply(false); // Fires when switching tabs on Character Summary tab, resets background
+        if (id == ScriptID.MESSAGE_LAYER_OPEN) apply(false); // Re-center text cursor when opening RuneLite input prompts (e.g. quest search)
     }
 
     @Subscribe
