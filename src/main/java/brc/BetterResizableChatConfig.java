@@ -19,6 +19,7 @@ public interface BetterResizableChatConfig extends Config {
     String HEIGHT_CHANGE = "heightChange";
     String WIDTH_CHANGE = "widthChange";
     String REWRAP_PRIVATE_CHAT = "rewrapPrivateChat";
+    String RESIZE_TAB_BUTTONS = "resizeTabButtons";
 
     @ConfigSection(name = "Resizable layout", description = "Settings for resizable layout.", position = 0)
     String resizableLayoutSection = "resizableLayout";
@@ -58,6 +59,17 @@ public interface BetterResizableChatConfig extends Config {
     )
     default boolean rewrapPrivateChat() {
         return true;
+    }
+
+    @ConfigItem(
+        position = 4,
+        keyName = RESIZE_TAB_BUTTONS,
+        name = "Resize chat tab buttons",
+        description = "Stretch the chat tab buttons relative to the adjusted chat width.",
+        section = resizableLayoutSection
+    )
+    default boolean resizeTabButtons() {
+        return false;
     }
 
     // Fixed layout settings

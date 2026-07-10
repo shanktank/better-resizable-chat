@@ -105,7 +105,7 @@ public class BetterResizableChatPlugin extends Plugin {
     protected void startUp() {
         hudAnchors = new RuneLiteHudAnchors(client, config);
         mainModals = new TopLevelModals(client);
-        bgGraphic = new ChatBackgroundGraphic(client);
+        bgGraphic = new ChatBackgroundGraphic(client, config);
         dialogBoxes = new ChatDialogBoxes(client);
         privateSplit = new PrivateMessageSplit(client, config);
         fixedChat = new FixedModeChat(client, config, bgGraphic, privateSplit, dialogBoxes, mainModals);

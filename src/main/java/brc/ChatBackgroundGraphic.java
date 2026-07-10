@@ -23,8 +23,11 @@ public class ChatBackgroundGraphic {
         SpriteID.V2StoneBorders.SIDE_PANEL_EDGE_RIGHT,
     };
 
-    // Chat tab bar and buttons below chat box
-    private static final int[] DEFAULT_TAB_X = {458, 396, 334, 272, 210, 148, 86};
+    // Chat tab bar, buttons, and stock layout values
+    private static final int TAB_STOCK_W = 56;
+    private static final int TAB_STOCK_GAP = 6;
+    private static final int TAB_STOCK_MARGIN = 5;
+    private static final int[] TAB_STOCK_X = { 458, 396, 334, 272, 210, 148, 86 };
     private static final int[] CHAT_TAB_BUTTONS = {
         InterfaceID.Chatbox.CHAT_ALL,
         InterfaceID.Chatbox.CHAT_GAME,
@@ -34,6 +37,15 @@ public class ChatBackgroundGraphic {
         InterfaceID.Chatbox.CHAT_CLAN,
         InterfaceID.Chatbox.CHAT_TRADE,
     };
+    private static final int[] CHAT_TAB_GRAPHICS = {
+        InterfaceID.Chatbox.CHAT_ALL_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_GAME_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_PUBLIC_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_PRIVATE_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_FRIENDSCHAT_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_CLAN_GRAPHIC,
+        InterfaceID.Chatbox.CHAT_TRADE_GRAPHIC,
+    };
 
     private static final int BACKGROUND_STRETCH_X = 40;
     private static final int BACKGROUND_STRETCH_Y = 75;
@@ -41,17 +53,13 @@ public class ChatBackgroundGraphic {
     private static final int CORNER_BLEED_TRIM = 1;
 
     private final Client client;
+    private final BetterResizableChatConfig config;
 
     private Widget[] borderPieces;
 
-    ChatBackgroundGraphic(Client client) {
+    ChatBackgroundGraphic(Client client, BetterResizableChatConfig config) {
         this.client = client;
-    }
-
-    private Widget getBackgroundBody(Widget background) {
-        Widget[] dynamic = background.getDynamicChildren();
-        if (dynamic == null || dynamic.length == 0) return null;
-        return dynamic[0];
+        this.config = config;
     }
 
     // Stretch the background sprite so the baked-in edges get clipped, args are absolute target dims
@@ -173,7 +181,17 @@ public class ChatBackgroundGraphic {
         // Update background graphic width, gaps between tab buttons
         controls.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
         graphic.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
-        for (int i = 0; i < tabs.length; i++) tabs[i].setOriginalX(tabTargetX(i, dw, tabs.length));
+
+        // Adjust chat tab button widths
+        boolean resize = config.resizeTabButtons();
+        int n = tabs.length, stonesTW = stonesTotal(dw, n), gapsTW = gapsTotal(dw, n);
+        for (int i = 0; i < n; i++) {
+            int w = resize ? tabTargetW(i, stonesTW, n) : TAB_STOCK_W;
+            tabs[i].setOriginalWidth(w);
+            tabs[i].setOriginalX(resize ? tabStretchX(i, dw, stonesTW, gapsTW, n) : tabSpreadX(i, dw, n));
+            Widget stone = client.getWidget(CHAT_TAB_GRAPHICS[i]);
+            if (stone != null) stone.setOriginalWidth(w);
+        }
     }
 
     // Check if tab bar is already laid out for this width delta
@@ -184,8 +202,31 @@ public class ChatBackgroundGraphic {
         if (tabs == null) return true;
 
         if (controls.getWidth() != BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw) return false;
-        for (int i = 0; i < tabs.length; i++) if (tabs[i].getOriginalX() != tabTargetX(i, dw, tabs.length)) return false;
+
+        boolean resize = config.resizeTabButtons();
+        int n = tabs.length, stonesTW = stonesTotal(dw, n), gapsTW = gapsTotal(dw, n);
+        for (int i = 0; i < n; i++) {
+            int w = resize ? tabTargetW(i, stonesTW, n) : TAB_STOCK_W;
+            if (tabs[i].getOriginalWidth() != w) return false;
+            int x = resize ? tabStretchX(i, dw, stonesTW, gapsTW, n) : tabSpreadX(i, dw, n);
+            if (tabs[i].getOriginalX() != x) return false;
+            Widget stone = client.getWidget(CHAT_TAB_GRAPHICS[i]);
+            if (stone != null && stone.getOriginalWidth() != w) return false;
+        }
+
         return true;
+    }
+
+    // Tab index of a chat tab button's component id (equals its varc CHAT_VIEW value), or -1 if not a chat tab
+    static int tabIndexOf(int componentId) {
+        for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) if (CHAT_TAB_BUTTONS[i] == componentId) return i;
+        return -1;
+    }
+
+    private Widget getBackgroundBody(Widget background) {
+        Widget[] dynamic = background.getDynamicChildren();
+        if (dynamic == null || dynamic.length == 0) return null;
+        return dynamic[0];
     }
 
     private Widget[] getTabs() {
@@ -193,18 +234,39 @@ public class ChatBackgroundGraphic {
         for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) {
             tabs[i] = client.getWidget(CHAT_TAB_BUTTONS[i]);
             if (tabs[i] == null) return null; // Not all tabs present yet
-            if (tabs[i].getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return null; // ABSOLUTE_LEFT during construction
+            if (tabs[i].getXPositionMode() != WidgetPositionMode.ABSOLUTE_RIGHT) return null; // Still in construction
         }
         return tabs;
     }
 
-    private static int tabTargetX(int i, int dw, int n) {
-        return DEFAULT_TAB_X[i] + dw * (n - i) / n;
+    // Width available for the stones and gaps, between the left margin and the report button
+    private static int tabSpace(int dw, int n) {
+        return n * TAB_STOCK_W + (n - 1) * TAB_STOCK_GAP + dw;
     }
 
-    // Tab index of a chat tab button's component id (equals its varc CHAT_VIEW value), or -1 if not a chat tab
-    static int tabIndexOf(int componentId) {
-        for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) if (CHAT_TAB_BUTTONS[i] == componentId) return i;
-        return -1;
+    // Combined gap width: stock-constant while growing; absorbs shrink first, until the stones touch
+    private static int gapsTotal(int dw, int n) {
+        return Math.max(0, Math.min((n - 1) * TAB_STOCK_GAP, tabSpace(dw, n) - n * TAB_STOCK_W));
+    }
+
+    // Combined stone width: absorbs growth beyond stock, and shrink once the gaps are gone
+    private static int stonesTotal(int dw, int n) {
+        return Math.max(n, tabSpace(dw, n) - gapsTotal(dw, n));
+    }
+
+    // Stone widths distributed evenly
+    private static int tabTargetW(int i, int stones, int n) {
+        return stones * (i + 1) / n - stones * i / n;
+    }
+
+    // Offset from the bar's right edge
+    private static int tabStretchX(int i, int dw, int stones, int gaps, int n) {
+        int x = TAB_STOCK_MARGIN + stones * i / n + gaps * i / (n - 1);
+        return BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw - x - tabTargetW(i, stones, n);
+    }
+
+    // Offset from the bar's right edge when stones stay stock-size: spread them proportionally instead
+    private static int tabSpreadX(int i, int dw, int n) {
+        return TAB_STOCK_X[i] + dw * (n - i) / n;
     }
 }

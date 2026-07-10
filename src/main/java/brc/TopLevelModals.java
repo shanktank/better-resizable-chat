@@ -63,9 +63,7 @@ public class TopLevelModals {
         }
     }
 
-    // Re-align each mounted modal's root to its slot; revalidates and the resize script don't cross
-    // the nested-group boundary, so modals that size themselves off their own root (All Settings
-    // polls it on a timer, unlike the bank which polls the slot) keep their mount-time size
+    // Re-align each mounted modal's root to its slot
     private void realignMounted() {
         HashTable<WidgetNode> componentTable = client.getComponentTable();
         for (int slotId : MODAL_SLOTS) {
@@ -76,7 +74,6 @@ public class TopLevelModals {
             Widget root = client.getWidget(mounted.getId(), 0);
             if (root == null) continue;
             // Match engine alignment: only MINUS axes track the slot; absolute roots size themselves
-            // (e.g. Combat Achievements overview is a fixed 512x334 that must not be stretched)
             int w = root.getWidthMode() == WidgetSizeMode.MINUS ? slot.getWidth() - root.getOriginalWidth() : root.getWidth();
             int h = root.getHeightMode() == WidgetSizeMode.MINUS ? slot.getHeight() - root.getOriginalHeight() : root.getHeight();
             if (w == root.getWidth() && h == root.getHeight()) continue;
