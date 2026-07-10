@@ -15,6 +15,8 @@ import net.runelite.api.events.ResizeableChanged;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.VarbitChanged;
+import net.runelite.api.events.WidgetClosed;
+import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarClientID;
 import net.runelite.api.gameval.VarbitID;
@@ -202,6 +204,12 @@ public class BetterResizableChatPlugin extends Plugin {
         if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
 
+        // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire, temp-shrink if necessary
+        if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && mainModals.topLevelModalOpenStateChanged()) {
+            apply(false);
+            clientThread.invokeAtTickEnd(this::applyOverlayTransition); // Relayout + realign once the open salvo settles
+        }
+
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
     }
@@ -217,16 +225,9 @@ public class BetterResizableChatPlugin extends Plugin {
     private void onBeforeRender(BeforeRender event) {
         boolean dragging = dragResizer.isDragging();
         if (dragging && !wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
-        if ((dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged()) {
-            // Chat overlay or toplevel modal just opened or closed
-            clientThread.invokeLater(() -> { // Redraw is smooth when done in client thread
-                apply(false);
-                if (client.isResized()) { // Resizable-only re-fit + re-wrap; fixed mode is fully re-asserted within apply()
-                    mainModals.relayout();
-                    client.runScript(RESIZES_CHAT_SCRIPT);
-                }
-                scrollKeep.sync();
-            });
+
+        if (overlayTransitioned()) {
+            clientThread.invokeLater(this::applyOverlayTransition); // Fallback for overlays that open without a widget event
         } else if (dragging) {
             Dimension size = apply(false);
             // Fixed mode re-wraps within apply() (width is locked); the rewrap script + relayout are resizable-only
@@ -253,6 +254,37 @@ public class BetterResizableChatPlugin extends Plugin {
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         Widget slot = universe == null ? null : universe.getParent(); // Fixed: CHAT_CONTAINER; resizable: the chat slot
         dragResizer.update(slot == null ? null : slot.getBounds(), !client.isResized());
+    }
+
+    @Subscribe
+    private void onWidgetLoaded(WidgetLoaded event) {
+        clientThread.invokeAtTickEnd(this::handleOverlayTransition);
+    }
+
+    @Subscribe
+    private void onWidgetClosed(WidgetClosed event) {
+        clientThread.invokeAtTickEnd(this::handleOverlayTransition);
+    }
+
+    private void handleOverlayTransition() {
+        if (overlayTransitioned()) applyOverlayTransition();
+    }
+
+    // Chat overlay or toplevel modal just opened or closed; consumes both edge detectors
+    private boolean overlayTransitioned() {
+        return (dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged();
+    }
+
+    // Adjust the chat and re-fit modals after an overlay transition
+    private void applyOverlayTransition() {
+        apply(false);
+        if (client.isResized()) { // Resizable-only re-fit + re-wrap; fixed mode is fully re-asserted within apply()
+            mainModals.relayout();
+            client.runScript(RESIZES_CHAT_SCRIPT);
+        } else if (!dragResizer.isDragging() && fixedChat.consumeRelayoutNeeded()) {
+            mainModals.relayout(); // Re-fit the open modal to the changed band in the same tick
+        }
+        scrollKeep.sync();
     }
 
     // Apply resizes for the current layout
@@ -298,6 +330,7 @@ public class BetterResizableChatPlugin extends Plugin {
             bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
             dialogBoxes.centerDialogs();
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/enable with 0/0 change
+            privateSplit.resizePmBox(slotW);
             return new Dimension(slotW, slotH);
         }
 
