@@ -66,16 +66,13 @@ public class FixedModeChat {
 
         int heightChange = effectiveHeightChange();
         if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
-
-        // A dialog restoring a hidden chat must not resize the viewport (the 3D projection would
-        // recenter): hold the viewport at this pre-dialog band and let the chat draw over it
-        int heldHeightChange = heightChange;
+        int heldHeightChange = heightChange; // Avoid jerking camera when a dialog is opened if chat is hidden
 
         // Shrink/grow to stock height while chat overlay is open
         if (dialogBoxes.isDialogOpen()) {
             if (heightChange < 0) heightChange = 0;
             if (config.ungrowForDialogs() && heightChange > 0) heightChange = 0;
-            if (mainModals.isModalOpen()) heldHeightChange = heightChange; // Modals fit the viewport band, so it must follow the chat
+            if (mainModals.isModalOpen()) heldHeightChange = heightChange;
         }
 
         // Clamp height to [tab bar, full frame]; bottom edge stays pinned, top grows up toward 0
@@ -93,7 +90,7 @@ public class FixedModeChat {
         int backgroundH = targetH - TAB_BAR_H; // Background/chat-area height (excludes the tab bar)
         int minViewH = config.fixedAdjustViewport() ? 0 : STOCK_MAIN_H; // Handle chat height above stock
         int chatBandH = Math.max(minViewH, targetY - MAIN_TOP); // Band above the chat; HUD anchors follow this
-        int mainH = Math.max(chatBandH, heldY - MAIN_TOP); // Viewport keeps the held band but must always reach the chat top
+        int mainH = Math.max(chatBandH, heldY - MAIN_TOP); // Viewport keeps held band but must always reach chat top
         int viewportBottom = MAIN_TOP + mainH;
         int pmH = targetY - MAIN_TOP; // Split-PM box height so its bottom lands at the chat top
 
@@ -156,7 +153,7 @@ public class FixedModeChat {
     // Show or hide chat in fixed layout when active chat tab button is clicked
     void onMenuOptionClicked(MenuOptionClicked event) {
         if (client.isResized() || !config.fixedTabCollapse() || !event.getMenuOption().equals(SWITCH_TAB)) return;
-        int tab = ChatBackgroundGraphic.tabIndexOf(event.getParam1()); // Param1 is the clicked widget's component id
+        int tab = ChatBackgroundGraphic.tabIndexOf(event.getParam1()); // Param1 is the clicked widget's component ID
         if (tab != -1) setCollapsed(!isCollapsed() && tab == client.getVarcIntValue(VarClientID.CHAT_VIEW));
     }
 
@@ -203,9 +200,9 @@ public class FixedModeChat {
     }
 
     // Extend the viewport's left/right border sprites down to the viewport bottom
-    private void extendViewportBorders(int viewportBottom) {
-        resizeBorder(InterfaceID.Toplevel.CONTROL, MAIN_TOP, STOCK_MAIN_H, viewportBottom, false);
-        resizeBorder(InterfaceID.Toplevel.GAMEFRAME_GRAPHIC5, RIGHT_BORDER_TOP, RIGHT_BORDER_H, viewportBottom, true);
+    private void extendViewportBorders(int vpB) {
+        resizeBorder(InterfaceID.Toplevel.CONTROL, MAIN_TOP, STOCK_MAIN_H, vpB, false);
+        resizeBorder(InterfaceID.Toplevel.GAMEFRAME_GRAPHIC5, RIGHT_BORDER_TOP, RIGHT_BORDER_H, vpB, true);
     }
 
     private void resizeBorder(int widgetId, int top, int stockH, int bottom, boolean tile) {
@@ -218,8 +215,7 @@ public class FixedModeChat {
         border.revalidate();
     }
 
-    // Anchors follow the band above the chat (not the held viewport, so they clear a dialog-restored
-    // chat); adjustHudAnchors additionally tracks a grown chat drawn over a stock viewport
+    // Anchors follow the band above the chat; adjustHudAnchors additionally tracks grown chat drawn over stock viewport
     private void sizeHudAnchor(int targetY, int chatBandH) {
         Widget hud = client.getWidget(InterfaceID.Toplevel.OVERLAY_HUD);
         if (hud == null) return;

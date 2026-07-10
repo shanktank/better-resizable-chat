@@ -204,9 +204,7 @@ public class BetterResizableChatPlugin extends Plugin {
         if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
 
-        // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire — modals size
-        // their window inside onLoad (e.g. bankmain_init) from mount-time dims, so the temp-shrink
-        // must land now; waiting for tick end leaves the window fit to the tall-chat band for a frame
+        // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire, temp-shrink if necessary
         if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && mainModals.topLevelModalOpenStateChanged()) {
             apply(false);
             clientThread.invokeAtTickEnd(this::applyOverlayTransition); // Relayout + realign once the open salvo settles
@@ -227,10 +225,9 @@ public class BetterResizableChatPlugin extends Plugin {
     private void onBeforeRender(BeforeRender event) {
         boolean dragging = dragResizer.isDragging();
         if (dragging && !wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
+
         if (overlayTransitioned()) {
-            // Fallback for overlays that open without a widget event (e.g. message-layer inputs);
-            // BeforeRender fires after this tick's invokeAtTickEnd drain, so defer to the next tick
-            clientThread.invokeLater(this::applyOverlayTransition);
+            clientThread.invokeLater(this::applyOverlayTransition); // Fallback for overlays that open without a widget event
         } else if (dragging) {
             Dimension size = apply(false);
             // Fixed mode re-wraps within apply() (width is locked); the rewrap script + relayout are resizable-only
@@ -259,12 +256,6 @@ public class BetterResizableChatPlugin extends Plugin {
         dragResizer.update(slot == null ? null : slot.getBounds(), !client.isResized());
     }
 
-    // Interfaces mount/unmount during tick processing; handling at tick end lands in the same
-    // rendered frame, so the chat resize can't trail the modal (invokeLater would run at the
-    // next tick's start, one rendered frame late). The transition check itself must also wait
-    // for tick end: script-opened interfaces can post the load event before their component
-    // table entry lands, so checking here would miss them (the bank, opened by the server
-    // packet path, is tabled before the event — that asymmetry is why only it looked instant)
     @Subscribe
     private void onWidgetLoaded(WidgetLoaded event) {
         clientThread.invokeAtTickEnd(this::handleOverlayTransition);
@@ -295,9 +286,6 @@ public class BetterResizableChatPlugin extends Plugin {
         }
         scrollKeep.sync();
     }
-
-    // TD: Still a slight flicker for All Settings and Combat Achievements modals being sized/fit on open when chat must be temp-shrunk when in fixed mode
-    //   This issue goes away for All Settings but not Combat Achievements modal if "Adjust camera on grow" is disabled
 
     // Apply resizes for the current layout
     private Dimension apply(boolean force) {
@@ -342,7 +330,7 @@ public class BetterResizableChatPlugin extends Plugin {
             bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
             dialogBoxes.centerDialogs();
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/enable with 0/0 change
-            privateSplit.resizePmBox(slotW); // Re-assert PM width; an engine rebuild can reset it without touching the chat dims
+            privateSplit.resizePmBox(slotW);
             return new Dimension(slotW, slotH);
         }
 
