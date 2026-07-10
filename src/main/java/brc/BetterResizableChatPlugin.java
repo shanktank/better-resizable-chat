@@ -253,15 +253,22 @@ public class BetterResizableChatPlugin extends Plugin {
 
     // Interfaces mount/unmount during tick processing; handling at tick end lands in the same
     // rendered frame, so the chat resize can't trail the modal (invokeLater would run at the
-    // next tick's start, one rendered frame late)
+    // next tick's start, one rendered frame late). The transition check itself must also wait
+    // for tick end: script-opened interfaces can post the load event before their component
+    // table entry lands, so checking here would miss them (the bank, opened by the server
+    // packet path, is tabled before the event — that asymmetry is why only it looked instant)
     @Subscribe
     private void onWidgetLoaded(WidgetLoaded event) {
-        if (overlayTransitioned()) clientThread.invokeAtTickEnd(this::applyOverlayTransition);
+        clientThread.invokeAtTickEnd(this::handleOverlayTransition);
     }
 
     @Subscribe
     private void onWidgetClosed(WidgetClosed event) {
-        if (overlayTransitioned()) clientThread.invokeAtTickEnd(this::applyOverlayTransition);
+        clientThread.invokeAtTickEnd(this::handleOverlayTransition);
+    }
+
+    private void handleOverlayTransition() {
+        if (overlayTransitioned()) applyOverlayTransition();
     }
 
     // Chat overlay or toplevel modal just opened or closed; consumes both edge detectors
@@ -281,10 +288,11 @@ public class BetterResizableChatPlugin extends Plugin {
         scrollKeep.sync();
     }
 
-    // This all made growing/shrinking for bank modal open/close smooth as hell
-    // There's still a few frames/a client tick between opening/closing All Settings and chat getting temp-shrunk/un-temp-shrunk
-    // There's a momentary resize flicker when opening combat tasks modal when chat must be temp-shrunk
-    // Private split moves perfectly and immediately with temp resizes for bank modal, but sometimes delays slightly for other modals
+    // Still a slight flicker for all main modals being sized/fit on open when chat must be temp-shrunk when in fixed mode
+    //   This issue goes away for all but Combat Achievements modal if "Adjust camera on grow" is disabled
+    // Still a slight flicker of All Settings modal being sized/fit on open when chat must be temp-shrunk in fixed mode
+    //   Not a problem in resizable mode
+    // Still sometimes a single frame/tick flicker for private split moving/rewrapping on plugin enable
 
     // Apply resizes for the current layout
     private Dimension apply(boolean force) {

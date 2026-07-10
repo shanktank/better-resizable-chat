@@ -79,5 +79,4 @@ public class TopLevelModals {
             BetterResizableChatPlugin.revalidateChildren(root);
         }
     }
-    // All Settings modal now refits itself when chat height is temp-shrunk in fixed layout, but introduces same flicker as above
 }
