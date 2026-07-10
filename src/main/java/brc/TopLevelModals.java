@@ -79,8 +79,5 @@ public class TopLevelModals {
             BetterResizableChatPlugin.revalidateChildren(root);
         }
     }
-    // Makes the flicker from temp-shrinking chat height when opening bank in resizable layout go away
-    // *Introduces* the abovementioned flicker when temp-shrinking chat height when opening bank in fixed layout
     // All Settings modal now refits itself when chat height is temp-shrunk in fixed layout, but introduces same flicker as above
-    // All Settings modal still does not use extra available space when chat height is below stock in resizable layout
 }
