@@ -6,6 +6,7 @@ import net.runelite.api.HashTable;
 import net.runelite.api.WidgetNode;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetSizeMode;
 import lombok.Getter;
 
 public class TopLevelModals {
@@ -73,9 +74,14 @@ public class TopLevelModals {
             Widget slot = client.getWidget(slotId);
             if (slot == null) continue;
             Widget root = client.getWidget(mounted.getId(), 0);
-            if (root == null || (root.getWidth() == slot.getWidth() && root.getHeight() == slot.getHeight())) continue;
-            BetterResizableChatPlugin.setWidth(root, slot.getWidth());
-            BetterResizableChatPlugin.setHeight(root, slot.getHeight());
+            if (root == null) continue;
+            // Match engine alignment: only MINUS axes track the slot; absolute roots size themselves
+            // (e.g. Combat Achievements overview is a fixed 512x334 that must not be stretched)
+            int w = root.getWidthMode() == WidgetSizeMode.MINUS ? slot.getWidth() - root.getOriginalWidth() : root.getWidth();
+            int h = root.getHeightMode() == WidgetSizeMode.MINUS ? slot.getHeight() - root.getOriginalHeight() : root.getHeight();
+            if (w == root.getWidth() && h == root.getHeight()) continue;
+            BetterResizableChatPlugin.setWidth(root, w);
+            BetterResizableChatPlugin.setHeight(root, h);
             BetterResizableChatPlugin.revalidateChildren(root);
         }
     }

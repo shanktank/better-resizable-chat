@@ -204,6 +204,14 @@ public class BetterResizableChatPlugin extends Plugin {
         if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
 
+        // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire — modals size
+        // their window inside onLoad (e.g. bankmain_init) from mount-time dims, so the temp-shrink
+        // must land now; waiting for tick end leaves the window fit to the tall-chat band for a frame
+        if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && mainModals.topLevelModalOpenStateChanged()) {
+            apply(false);
+            clientThread.invokeAtTickEnd(this::applyOverlayTransition); // Relayout + realign once the open salvo settles
+        }
+
         int id = event.getScriptId();
         if (id == ScriptID.BUILD_CHATBOX || id == ScriptID.SPLITPM_CHANGED || id == TOPLEVEL_RELAYOUT_SCRIPT) apply(false);
     }
@@ -288,11 +296,8 @@ public class BetterResizableChatPlugin extends Plugin {
         scrollKeep.sync();
     }
 
-    // Still a slight flicker for all main modals being sized/fit on open when chat must be temp-shrunk when in fixed mode
-    //   This issue goes away for all but Combat Achievements modal if "Adjust camera on grow" is disabled
-    // Still a slight flicker of All Settings modal being sized/fit on open when chat must be temp-shrunk in fixed mode
-    //   Not a problem in resizable mode
-    // Still sometimes a single frame/tick flicker for private split moving/rewrapping on plugin enable
+    // TD: Still a slight flicker for All Settings and Combat Achievements modals being sized/fit on open when chat must be temp-shrunk when in fixed mode
+    //   This issue goes away for All Settings but not Combat Achievements modal if "Adjust camera on grow" is disabled
 
     // Apply resizes for the current layout
     private Dimension apply(boolean force) {
@@ -337,6 +342,7 @@ public class BetterResizableChatPlugin extends Plugin {
             bgGraphic.zoomBakedSprite(slotW, CHATBOX_SPRITE_H + heightChange);
             dialogBoxes.centerDialogs();
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/enable with 0/0 change
+            privateSplit.resizePmBox(slotW); // Re-assert PM width; an engine rebuild can reset it without touching the chat dims
             return new Dimension(slotW, slotH);
         }
 

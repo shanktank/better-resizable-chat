@@ -37,7 +37,8 @@ public class PrivateMessageSplit {
             pmContainer.revalidate();
         }
 
-        BetterResizableChatPlugin.setWidth(pmChat, slotW); // setOriginalWidth leads to width spanning full viewport
+        // setOriginalWidth leads to width spanning full viewport; guarded so the per-frame re-assert is free when in sync
+        if (pmChat.getWidth() != slotW) BetterResizableChatPlugin.setWidth(pmChat, slotW);
     }
 
     // Bottom-anchored within PmChat.CONTAINER but resolves against client root
