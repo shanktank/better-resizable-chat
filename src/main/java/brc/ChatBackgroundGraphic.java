@@ -1,6 +1,7 @@
 package brc;
 
 import net.runelite.api.Client;
+import net.runelite.api.FontTypeFace;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.gameval.VarbitID;
@@ -49,7 +50,6 @@ public class ChatBackgroundGraphic {
     };
 
     // Tab bar button shifting and label alignment
-    private static final int ALIGN_THRESHOLD = -130;
     private static final int ALIGN_SHIFT = 1;
     private static final int MINIMUM_GAP = 10;
 
@@ -188,26 +188,16 @@ public class ChatBackgroundGraphic {
 
         // Adjust chat tab button widths, graphics, and labels
         boolean resize = config.resizeTabButtons();
-        int alignment = resize && dw != 0 && config.widthChange() < ALIGN_THRESHOLD ? WidgetTextAlignment.LEFT : WidgetTextAlignment.CENTER;
-        int originalX = alignment == 0 ? ALIGN_SHIFT : 0; // Default originalX is 0
+        boolean measure = resize && dw != 0; // Stock and revert paths stay centered
         int n = tabs.length, stonesTW = stonesTotal(dw, n), gapsTW = gapsTotal(dw, n);
         for (int i = 0; i < n; i++) {
             Widget[] tabSC = tabs[i].getStaticChildren();
             int w = resize ? tabTargetW(i, stonesTW, n) : TAB_STOCK_W;
-
             tabs[i].setOriginalWidth(w);
             tabs[i].setOriginalX(resize ? tabStretchX(i, dw, stonesTW, gapsTW, n) : tabSpreadX(i, dw, n));
-
-            // Resize buttons and adjust labels
             if (tabSC.length > 0 && tabSC[0] != null) tabSC[0].setOriginalWidth(w); // Resize tab button graphic
-            if (tabSC.length > 1 && tabSC[1] != null) { // Tab button label text
-                tabSC[1].setXTextAlignment(alignment); // Left-align if tab too small
-                tabSC[1].setOriginalX(originalX); // Shift text if left-aligning
-            }
-            if (tabSC.length > 2 && tabSC[2] != null) { // Align tab button config text
-                tabSC[2].setXTextAlignment(alignment);
-                tabSC[2].setOriginalX(originalX);
-            }
+            if (tabSC.length > 1 && tabSC[1] != null) alignLabel(tabSC[1], measure, w); // Tab button label text
+            if (tabSC.length > 2 && tabSC[2] != null) alignLabel(tabSC[2], measure, w); // Tab button config text
         }
     }
 
@@ -285,5 +275,22 @@ public class ChatBackgroundGraphic {
     private static int tabStretchX(int i, int dw, int stones, int gaps, int n) {
         int x = TAB_STOCK_MARGIN + stones * i / n + gaps * i / (n - 1);
         return BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw - x - tabTargetW(i, stones, n);
+    }
+
+    // Left-align a label when its text is too wide to draw centered in its stone
+    private static void alignLabel(Widget label, boolean measure, int stoneW) {
+        int alignment = measure && labelOverflows(label, stoneW) ? WidgetTextAlignment.LEFT : WidgetTextAlignment.CENTER;
+        int originalX = alignment == 0 ? ALIGN_SHIFT : 0; // Default originalX is 0
+        if (label.getXTextAlignment() == alignment && label.getOriginalX() == originalX) return;
+        label.setXTextAlignment(alignment);
+        label.setOriginalX(originalX);
+        label.revalidate(); // In case main apply short-circuits
+    }
+
+    // Measure the label's text in its own font; tags like <col> are skipped by getTextWidth
+    private static boolean labelOverflows(Widget label, int stoneW) {
+        FontTypeFace font = label.getFont();
+        String text = label.getText();
+        return font != null && text != null && font.getTextWidth(text) > stoneW;
     }
 }
