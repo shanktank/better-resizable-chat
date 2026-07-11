@@ -48,13 +48,13 @@ public class BetterResizableChatPlugin extends Plugin {
     private static final int TOPLEVEL_RELAYOUT_SCRIPT = 1972;
     private static final int RESIZES_CHAT_SCRIPT = 924;
     private static final int REWRAPS_CHAT_SCRIPT = 663;
-    private static final int CHAT_TAB_CLICKED_SCRIPT = 175; // Handles clicks on the chat tab buttons
+    static final int CHAT_TAB_CLICKED_SCRIPT = 175; // Handles clicks on the chat tab buttons
 
-    public static final int CHATBOX_SPRITE_W = 519;
-    public static final int CHATBOX_SPRITE_H = 142;
-    public static final int CHATBOX_SLOT_H = 165; // Chat box plus tabs bar
+    static final int CHATBOX_SPRITE_W = 519;
+    static final int CHATBOX_SPRITE_H = 142;
+    static final int CHATBOX_SLOT_H = 165; // Chat box plus tabs bar
 
-    private static final int COLLAPSED_TAB = 1337; // ID of collapsed chat "tab" in resizable layout
+    static final int COLLAPSED_TAB = 1337; // ID of sentinel "tab" when chat is collapsed
 
     @Inject private Client client;
     @Inject private ClientThread clientThread;
@@ -243,6 +243,8 @@ public class BetterResizableChatPlugin extends Plugin {
         }
         wasDragging = dragging;
 
+        // Fixed layout: mirror resizable's collapsed CHAT_VIEW sentinel so incoming messages blink their tab
+        if (!client.isResized() && client.getGameState() == GameState.LOGGED_IN) fixedChat.syncCollapsedTab();
         // Fixed layout: the viewport band changed under an open modal
         if (!dragging && fixedChat.consumeRelayoutNeeded()) mainModals.relayout();
         // Fixed layout: rebuild the chatbox after a height change so lines re-anchor to the bottom

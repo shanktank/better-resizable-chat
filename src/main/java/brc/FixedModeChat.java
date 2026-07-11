@@ -12,6 +12,8 @@ import lombok.Setter;
 import java.awt.Dimension;
 
 public class FixedModeChat {
+    private static final int REDRAW_CHAT_BUTTONS_SCRIPT = 178;
+
     private static final int STOCK_Y = 338; // Stock top of CHAT_CONTAINER in fixed layout
     private static final int STOCK_W = BetterResizableChatPlugin.CHATBOX_SPRITE_W;
     private static final int STOCK_H = BetterResizableChatPlugin.CHATBOX_SLOT_H;
@@ -41,6 +43,7 @@ public class FixedModeChat {
     private boolean rebuildNeeded; // Chat height changed; lines keep stale positions until a chatbox rebuild
 
     @Getter @Setter private boolean collapsed; // Chat collapsed to just the tab bar via clicking the open chat tab
+    private int savedTab = -1; // Open tab saved while collapse parks CHAT_VIEW on the sentinel
 
     FixedModeChat(
         Client client, BetterResizableChatConfig config,
@@ -136,6 +139,9 @@ public class FixedModeChat {
     // Revert to stock using absolute universe, next engine chatbox rebuild fully restore native mode
     void restore() {
         collapsed = false;
+        if (savedTab != -1 && client.getVarcIntValue(VarClientID.CHAT_VIEW) == BetterResizableChatPlugin.COLLAPSED_TAB)
+            client.setVarcIntValue(VarClientID.CHAT_VIEW, savedTab); // Must unpark with raw write
+        savedTab = -1;
         lastTargetY = STOCK_Y;
         relayoutNeeded = false;
         rebuildNeeded = false;
@@ -148,6 +154,25 @@ public class FixedModeChat {
         sizeHudAnchor(STOCK_Y, STOCK_MAIN_H);
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();
+    }
+
+    // Park chat view on collapsed sentinel so messages blink their tab's stone, reopen saved tab on uncollapse
+    void syncCollapsedTab() {
+        int tab = client.getVarcIntValue(VarClientID.CHAT_VIEW);
+        if (collapsed) {
+            if (tab != BetterResizableChatPlugin.COLLAPSED_TAB) {
+                savedTab = tab;
+                client.setVarcIntValue(VarClientID.CHAT_VIEW, BetterResizableChatPlugin.COLLAPSED_TAB);
+                client.runScript(REDRAW_CHAT_BUTTONS_SCRIPT); // Repaint tab as unselected
+            }
+        } else if (tab == BetterResizableChatPlugin.COLLAPSED_TAB) {
+            if (savedTab != -1) { // Uncollapsed by hotkey/config/drag; reopen and clear blink
+                client.runScript(BetterResizableChatPlugin.CHAT_TAB_CLICKED_SCRIPT, 1, savedTab);
+                savedTab = -1;
+            }
+        } else {
+            savedTab = -1; // Uncollapsed by clicking a tab; the click script already opened it
+        }
     }
 
     // Show or hide chat in fixed layout when active chat tab button is clicked
