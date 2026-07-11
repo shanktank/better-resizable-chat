@@ -35,6 +35,7 @@ import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.HotkeyListener;
 import com.google.inject.Provides;
 import java.awt.Dimension;
+import java.awt.Rectangle;
 import javax.inject.Inject;
 
 @PluginDescriptor(
@@ -205,7 +206,7 @@ public class BetterResizableChatPlugin extends Plugin {
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
 
         // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire, temp-shrink if necessary
-        if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && mainModals.topLevelModalOpenStateChanged()) {
+        if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && modalStateChanged()) {
             apply(false);
             clientThread.invokeAtTickEnd(this::applyOverlayTransition); // Relayout + realign once the open salvo settles
         }
@@ -274,7 +275,24 @@ public class BetterResizableChatPlugin extends Plugin {
 
     // Chat overlay or toplevel modal just opened or closed; consumes both edge detectors
     private boolean overlayTransitioned() {
-        return (dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || mainModals.topLevelModalOpenStateChanged();
+        return (dialogBoxes.dialogOpenStateChanged() && dialogAdjustsSize()) || modalStateChanged();
+    }
+
+    // Refresh the modal open/ungrow caches and report flips of either
+    private boolean modalStateChanged() {
+        boolean overlapOnly = client.isResized() && config.ungrowForModalsOverlapOnly();
+        return mainModals.modalStateChanged(overlapOnly ? grownChatRect() : null, overlapOnly);
+    }
+
+    // The chat rect as it would be at the configured size (it may currently be temp-ungrown)
+    private Rectangle grownChatRect() {
+        Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
+        Widget slot = universe == null ? null : universe.getParent();
+        if (slot == null || slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Not loaded or mid-swap
+        Rectangle bounds = slot.getBounds(); // Left/bottom anchored, so grow up and to the right from live bounds
+        int slotW = CHATBOX_SPRITE_W + config.widthChange();
+        int slotH = CHATBOX_SLOT_H + config.heightChange();
+        return new Rectangle(bounds.x, bounds.y + bounds.height - slotH, slotW, slotH);
     }
 
     // Adjust the chat and re-fit modals after an overlay transition
@@ -305,7 +323,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
         int widthChange = config.widthChange();
         int heightChange = config.heightChange();
-        if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
+        if (mainModals.isUngrowNeeded() && heightChange > 0) heightChange = 0; // Should shrink
 
         // Unshrink or ungrow for dialog interfaces
         if (dialogBoxes.isDialogOpen()) {

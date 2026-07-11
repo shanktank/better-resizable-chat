@@ -8,6 +8,7 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
 import lombok.Getter;
+import java.awt.Rectangle;
 
 public class TopLevelModals {
     // Top-level interface slots, per layout, into which most overlays, such as the bank screen, are loaded
@@ -30,6 +31,7 @@ public class TopLevelModals {
     private final Client client;
 
     @Getter private boolean modalOpen;
+    @Getter private boolean ungrowNeeded; // An open modal requires the chat to give up its extra height
 
     TopLevelModals(Client client) {
         this.client = client;
@@ -44,11 +46,31 @@ public class TopLevelModals {
         return false;
     }
 
-    boolean topLevelModalOpenStateChanged() {
+    boolean modalStateChanged(Rectangle grownChat, boolean overlapOnly) {
         boolean open = isTopLevelModalOpen();
-        boolean changed = open != modalOpen;
+        boolean ungrow = open && (!overlapOnly || anyModalObstructs(grownChat));
+        boolean changed = open != modalOpen || ungrow != ungrowNeeded;
         modalOpen = open;
+        ungrowNeeded = ungrow;
         return changed;
+    }
+
+    // True if any mounted modal wants the full band or would overlap the given chat rect
+    private boolean anyModalObstructs(Rectangle chat) {
+        if (chat == null) return true;
+        HashTable<WidgetNode> componentTable = client.getComponentTable();
+        for (int slotId : MODAL_SLOTS) {
+            if (componentTable.get(slotId) == null) continue;
+            Widget slot = client.getWidget(slotId);
+            if (slot == null) return true;
+            if (slot.isHidden()) continue;
+            // The open script sizes the slot itself: band/fill modals (bank, settings; varc 173 < 0)
+            // get MINUS height, hard modals (quest journal, skill guide; varc 173 >= 0) get ABSOLUTE
+            // 512x334 centered in the band — so the slot's bounds are the modal's real boundary
+            if (slot.getHeightMode() != WidgetSizeMode.ABSOLUTE) return true;
+            if (slot.getBounds().intersects(chat)) return true;
+        }
+        return false;
     }
 
     // Re-fit the UI to current available space

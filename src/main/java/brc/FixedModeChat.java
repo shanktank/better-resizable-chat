@@ -68,7 +68,7 @@ public class FixedModeChat {
         if (chatArea == null) return null;
 
         int heightChange = effectiveHeightChange();
-        if (mainModals.isModalOpen() && heightChange > 0) heightChange = 0; // Should shrink
+        if (mainModals.isUngrowNeeded() && heightChange > 0) heightChange = 0; // Should shrink
         int heldHeightChange = heightChange; // Avoid jerking camera when a dialog is opened if chat is hidden
 
         // Shrink/grow to stock height while chat overlay is open

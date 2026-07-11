@@ -20,6 +20,7 @@ public interface BetterResizableChatConfig extends Config {
     String WIDTH_CHANGE = "widthChange";
     String REWRAP_PRIVATE_CHAT = "rewrapPrivateChat";
     String RESIZE_TAB_BUTTONS = "resizeTabButtons";
+    String UNGROW_FOR_MODALS_OVERLAP_ONLY = "ungrowForModalsOverlapOnly";
 
     @ConfigSection(name = "Resizable layout", description = "Settings for resizable layout.", position = 0)
     String resizableLayoutSection = "resizableLayout";
@@ -70,6 +71,18 @@ public interface BetterResizableChatConfig extends Config {
     )
     default boolean resizeTabButtons() {
         return false;
+    }
+
+    @ConfigItem(
+        position = 5,
+        keyName = UNGROW_FOR_MODALS_OVERLAP_ONLY,
+        name = "Revert only for overlapping modals",
+        description = "Only return a taller chat box to its default height when an open modal (quest journal, skill guide, etc.) would actually overlap it.<br>"
+                    + "Full-height modals (bank, settings, etc.) always revert the chat.",
+        section = resizableLayoutSection
+    )
+    default boolean ungrowForModalsOverlapOnly() {
+        return true;
     }
 
     // Fixed layout settings
