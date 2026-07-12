@@ -78,6 +78,11 @@ public class BetterResizableChatPlugin extends Plugin {
     private boolean wasDragging;
     private int lastOpenTab;
 
+    // The eventbus registers on the EDT right after startUp() returns, but the enable pass is queued for the next
+    // client tick; a BeforeRender in that gap would resize the chat without a rebuild and draw text off by the
+    // height change. Handlers stay inert until the enable pass has run. Volatile: written on EDT in shutDown.
+    private volatile boolean active;
+
     private final HotkeyListener hideChatHotkey = new HotkeyListener(() -> config.toggleShowChat()) {
         @Override public void hotkeyPressed() { clientThread.invoke(BetterResizableChatPlugin.this::toggleChatHidden); }
     };
@@ -90,15 +95,25 @@ public class BetterResizableChatPlugin extends Plugin {
     private void onEnableResizable() {
         scrollKeep.sync();
         apply(config.heightChange() == 0 && config.widthChange() == 0);
-        client.runScript(REWRAPS_CHAT_SCRIPT);
+        rebuildChatNow(REWRAPS_CHAT_SCRIPT);
         mainModals.relayout();
         scrollKeep.sync();
+        active = true;
     }
 
     private void onEnableFixed() {
         scrollKeep.sync();
         apply(true);
+        if (fixedChat.consumeRebuildNeeded()) rebuildChatNow(REWRAPS_CHAT_SCRIPT); // Deferring to refreshChat would draw stale line anchors for a frame
         scrollKeep.sync();
+        active = true;
+    }
+
+    // Clear last rebuild stamp so rebuild happens now
+    private void rebuildChatNow(int rebuildScript) {
+        if (client.getWidget(InterfaceID.Chatbox.SCROLLAREA) == null) return; // Chatbox not live (login/hop)
+        client.setVarcIntValue(VarClientID.CHAT_LASTREBUILD, client.getGameCycle() - 1);
+        client.runScript(rebuildScript);
     }
 
     @Override
@@ -111,7 +126,7 @@ public class BetterResizableChatPlugin extends Plugin {
         fixedChat = new FixedModeChat(client, config, bgGraphic, privateSplit, dialogBoxes, mainModals);
         scrollKeep = new ChatScrollRetainer(client, dialogBoxes);
         dragResizer = new DragResizer(config, configManager);
-        dragPreview = new DragPreview(dragResizer, config, tooltipManager);
+        dragPreview = new DragPreview(client, dragResizer, config, tooltipManager);
 
         keyManager.registerKeyListener(hideChatHotkey);
         dragResizer.migrateDragModifier();
@@ -119,11 +134,12 @@ public class BetterResizableChatPlugin extends Plugin {
         mouseManager.registerMouseListener(dragResizer);
         overlayManager.add(dragPreview);
 
-        clientThread.invoke(client.isResized() ? this::onEnableResizable : this::onEnableFixed);
+        clientThread.invoke(client.isResized() ? this::onEnableResizable : this::onEnableFixed); // Would invokeAtTickEnd obviate the active flag?
     }
 
     @Override
     protected void shutDown() {
+        active = false; // Handlers are unregistered after this returns; go inert before the queued restore runs
         keyManager.unregisterKeyListener(hideChatHotkey);
         keyManager.unregisterKeyListener(dragResizer.getKeyListener());
         mouseManager.unregisterMouseListener(dragResizer);
@@ -134,11 +150,11 @@ public class BetterResizableChatPlugin extends Plugin {
             scrollKeep.sync();
             if (client.isResized()) {
                 restore();
-                client.runScript(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
+                rebuildChatNow(RESIZES_CHAT_SCRIPT); // Clean up sprite + re-wrap at stock width
                 mainModals.relayout();
             } else {
                 fixedChat.restore();
-                client.refreshChat(); // Re-anchor lines to the restored stock height
+                rebuildChatNow(REWRAPS_CHAT_SCRIPT); // Re-anchor lines to the restored stock height
                 if (mainModals.isTopLevelModalOpen()) mainModals.relayout(); // Re-fit an open modal back to the stock band
             }
             scrollKeep.sync();
@@ -161,17 +177,19 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onConfigChanged(ConfigChanged event) {
-        if (!BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
+        if (!active || !BetterResizableChatConfig.GROUP.equals(event.getGroup()) || dragResizer.isDragging()) return;
         clientThread.invoke(() -> {
             scrollKeep.sync();
             if (!config.fixedTabCollapse()) fixedChat.setCollapsed(false); // Don't leave chat stuck collapsed when disabled
             apply(true);
             if (client.isResized()) {
-                client.runScript(REWRAPS_CHAT_SCRIPT);
+                rebuildChatNow(REWRAPS_CHAT_SCRIPT);
                 String key = event.getKey();
                 if (key.equals(BetterResizableChatConfig.WIDTH_CHANGE) || (key.equals(BetterResizableChatConfig.HEIGHT_CHANGE) && mainModals.isModalOpen())) {
                     mainModals.relayout(); // Re-fit bank, restack modern layout's inventory tabs
                 }
+            } else if (fixedChat.consumeRebuildNeeded()) {
+                rebuildChatNow(REWRAPS_CHAT_SCRIPT); // Deferring to refreshChat would draw stale line anchors for a frame
             }
             scrollKeep.sync();
         });
@@ -180,16 +198,19 @@ public class BetterResizableChatPlugin extends Plugin {
     // Show or hide chat in fixed layout when active chat tab button is clicked
     @Subscribe
     private void onMenuOptionClicked(MenuOptionClicked event) {
-        fixedChat.onMenuOptionClicked(event);
+        if (active) fixedChat.onMenuOptionClicked(event);
     }
 
     @Subscribe
     private void onVarbitChanged(VarbitChanged event) {
-        if (event.getVarbitId() == VarbitID.CHATBOX_TRANSPARENCY && event.getValue() == 1) bgGraphic.destroyBorder();
+        if (active && event.getVarbitId() == VarbitID.CHATBOX_TRANSPARENCY && event.getValue() == 1) bgGraphic.destroyBorder();
     }
 
     @Subscribe
     private void onResizeableChanged(ResizeableChanged event) {
+        if (!active) return; // The queued enable pass reads client.isResized() when it runs, so it lands in the right mode
+        active = false; // Go inert until the swapped mode's enable pass has run
+
         if (event.isResized()) { // Can flip before toplevel swap completes, defer swap a cycle to undo current edits before applying new ones
             fixedChat.restore(); // Leaving fixed, reset CHAT_CONTAINER (persists across logout)
             clientThread.invokeLater(this::onEnableResizable);
@@ -201,8 +222,11 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onScriptPreFired(ScriptPreFired event) {
-        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen())
+        if (!active) return;
+
+        if (config.adjustHudAnchors() && config.heightChange() > 0 && !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()) {
             hudAnchors.forceStockRendered(); // Top-level modal is open, pretend anchors haven't been moved so it draws itself with full size
+        }
 
         // Fixed mode: a modal mounted this tick and its onLoad hook is about to fire, temp-shrink if necessary
         if (!client.isResized() && !mainModals.isModalOpen() && fixedChat.effectiveHeightChange() > 0 && mainModals.topLevelModalOpenStateChanged()) {
@@ -216,6 +240,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onScriptPostFired(ScriptPostFired event) {
+        if (!active) return;
+
         int id = event.getScriptId();
         if (id == ScriptID.TOPLEVEL_REDRAW) apply(false); // Fires when switching tabs on Character Summary tab, resets background
         if (id == ScriptID.MESSAGE_LAYER_OPEN) apply(false); // Re-center text cursor when opening RuneLite input prompts (e.g. quest search)
@@ -223,6 +249,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     @Subscribe
     private void onBeforeRender(BeforeRender event) {
+        if (!active) return;
+
         boolean dragging = dragResizer.isDragging();
         if (dragging && !wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
 
@@ -236,7 +264,7 @@ public class BetterResizableChatPlugin extends Plugin {
         } else {
             apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
             if (wasDragging && client.isResized()) {
-                client.runScript(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
+                rebuildChatNow(RESIZES_CHAT_SCRIPT); // Single expensive re-wrap on drag-resize release
                 mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
             }
             dragResizer.setLastDragSize(null);
@@ -252,9 +280,7 @@ public class BetterResizableChatPlugin extends Plugin {
 
         scrollKeep.sync(); // Single preservation here
 
-        // Publish the current chat rectangle and layout for resize band management
-        Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
-        Widget slot = universe == null ? null : universe.getParent(); // Fixed: CHAT_CONTAINER; resizable: the chat slot
+        Widget slot = chatSlot(client);
         dragResizer.update(slot == null ? null : slot.getBounds(), !client.isResized());
     }
 
@@ -269,7 +295,7 @@ public class BetterResizableChatPlugin extends Plugin {
     }
 
     private void handleOverlayTransition() {
-        if (overlayTransitioned()) applyOverlayTransition();
+        if (active && overlayTransitioned()) applyOverlayTransition();
     }
 
     // Chat overlay or toplevel modal just opened or closed; consumes both edge detectors
@@ -282,7 +308,7 @@ public class BetterResizableChatPlugin extends Plugin {
         apply(false);
         if (client.isResized()) { // Resizable-only re-fit + re-wrap; fixed mode is fully re-asserted within apply()
             mainModals.relayout();
-            client.runScript(RESIZES_CHAT_SCRIPT);
+            rebuildChatNow(RESIZES_CHAT_SCRIPT);
         } else if (!dragResizer.isDragging() && fixedChat.consumeRelayoutNeeded()) {
             mainModals.relayout(); // Re-fit the open modal to the changed band in the same tick
         }
@@ -387,7 +413,8 @@ public class BetterResizableChatPlugin extends Plugin {
 
     // Hide or unhide chat on keybind
     private void toggleChatHidden() {
-        if (client.getGameState() != GameState.LOGGED_IN) return;
+        if (!active || client.getGameState() != GameState.LOGGED_IN) return;
+
         if (client.isResized()) {
             int tab = client.getVarcIntValue(VarClientID.CHAT_VIEW);
             if (tab != COLLAPSED_TAB) lastOpenTab = tab; // Save/restore the tab that was open before hiding with keybind
@@ -406,6 +433,12 @@ public class BetterResizableChatPlugin extends Plugin {
             int w = config.widthChange(), h = config.heightChange();
             return w < 0 || h < 0 || (config.ungrowForDialogs() && (w > 0 || h > 0));
         }
+    }
+
+    // The toplevel slot the chatbox occupies; fixed: CHAT_CONTAINER, resizable: the layout's chat slot
+    public static Widget chatSlot(Client client) {
+        Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
+        return universe == null ? null : universe.getParent();
     }
 
     static void revalidateChildren(Widget widget) {

@@ -23,15 +23,16 @@ public final class DragResizer extends MouseAdapter {
 
     @Getter private final KeyListener keyListener; // Tracks the configured drag key's held state via AWT key events
 
-    @Getter private volatile Rectangle bounds; // Current chat rectangle, published from update on the client thread
     @Getter private volatile Point pointer; // Last known cursor position in canvas space, published from mouse callbacks
+    private volatile Rectangle bounds; // Chat rectangle for mouse hit-testing, published from update on the client thread
     private volatile boolean modifierHeld; // Written from the hotkey callbacks (AWT thread), read by the overlay (client thread)
 
     @Getter @Setter private Dimension lastDragSize; // Chat size from the previous drag frame; null while not dragging
     @Getter private volatile boolean dragging; // True while a border drag is in progress
     @Getter private volatile boolean fixedMode; // Fixed layout: only the top border (height) is draggable
 
-    private boolean dragTop, dragRight, dragFixed;
+    private volatile boolean dragTop, dragRight; // Read by the overlay (client thread) to keep the dragged band lit
+    private boolean dragFixed;
     private int startX, startY, startExtraW, startExtraH;
 
     public DragResizer(BetterResizableChatConfig config, ConfigManager configManager) {
@@ -149,6 +150,14 @@ public final class DragResizer extends MouseAdapter {
     // Whether the draggable border bands should be drawn this frame: a drag is in progress, or the drag key is active
     boolean isHighlightActive() {
         return dragging || modifierActive();
+    }
+
+    boolean isDraggingTop() {
+        return dragging && dragTop;
+    }
+
+    boolean isDraggingRight() {
+        return dragging && dragRight;
     }
 
     // Whether the size readout should show: a drag is in progress, or the drag key is held with the cursor over a band

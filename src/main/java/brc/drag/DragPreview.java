@@ -1,6 +1,9 @@
 package brc.drag;
 
 import brc.BetterResizableChatConfig;
+import brc.BetterResizableChatPlugin;
+import net.runelite.api.Client;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -14,13 +17,15 @@ import java.awt.Rectangle;
 
 // Highlight draggable areas on top and right chat box borders
 public final class DragPreview extends Overlay {
+    private final Client client;
     private final DragResizer drag;
     private final TooltipManager tooltipManager; // RuneLite's built-in tooltip manager
     private final BetterResizableChatConfig config;
 
     private Color base, fill, edge, fillHover, edgeHover;
 
-    public DragPreview(DragResizer drag, BetterResizableChatConfig config, TooltipManager tooltipManager) {
+    public DragPreview(Client client, DragResizer drag, BetterResizableChatConfig config, TooltipManager tooltipManager) {
+        this.client = client;
         this.drag = drag;
         this.config = config;
         this.tooltipManager = tooltipManager;
@@ -51,8 +56,11 @@ public final class DragPreview extends Overlay {
             ? "Y: " + signed(config.fixedHeightChange()) // Fixed layout resizes height only
             : "X: " + signed(config.widthChange()) + "   Y: " + signed(config.heightChange())));
 
-        Rectangle b = drag.getBounds();
-        if (b == null) return null; // Suspended between the active-check and here
+        // Read the slot live: widget canvas locations only refresh during the widget draw pass, which runs just
+        // before this overlay, so these bounds match this frame's drawn chatbox; a BeforeRender snapshot trails it
+        Widget slot = BetterResizableChatPlugin.chatSlot(client);
+        Rectangle b = slot == null ? null : slot.getBounds();
+        if (b == null) return null;
 
         ensureColors();
         Point p = drag.getPointer();
@@ -60,7 +68,7 @@ public final class DragPreview extends Overlay {
         if (bands) {
             int grab = DragResizer.BORDER_GRAB;
             Rectangle top = DragResizer.topBand(b, grab);
-            boolean hoverTop = p != null && top.contains(p); // Brighten hovered band
+            boolean hoverTop = drag.isDraggingTop() || (p != null && top.contains(p)); // Brighten if hovered/active
 
             g.setColor(hoverTop ? fillHover : fill);
             g.fill(top);
@@ -71,7 +79,7 @@ public final class DragPreview extends Overlay {
 
             if (!fixed) {
                 Rectangle right = DragResizer.rightBand(b, grab);
-                boolean hoverRight = p != null && right.contains(p);
+                boolean hoverRight = drag.isDraggingRight() || (p != null && right.contains(p));
                 g.setColor(hoverRight ? fillHover : fill);
                 g.fill(right);
                 g.setColor(hoverRight ? edgeHover : edge);

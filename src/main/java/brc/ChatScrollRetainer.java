@@ -13,7 +13,7 @@ public final class ChatScrollRetainer {
 
     private Integer lastViewport; // Null until the chat scroll area is first seen
     private int lastWidth;
-    private int distFromBottom; // Content pixels below the viewport bottom
+    private int distFromBottom; // Content pixels below the viewport bottom; -1 while the engine rests at its 1px scroll floor
 
     ChatScrollRetainer(Client client, ChatDialogBoxes dialogBoxes) {
         this.client = client;
@@ -34,12 +34,12 @@ public final class ChatScrollRetainer {
 
         if (lastViewport != null && (viewport != lastViewport || width != lastWidth)) {
             // Chat was resized, repin to the remembered distance from the bottom
-            int target = Math.max(0, Math.min(Math.max(0, contentH - viewport), contentH - viewport - distFromBottom));
+            int target = Math.max(0, Math.min(Math.max(1, contentH - viewport), contentH - viewport - distFromBottom));
             client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, target);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, target);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
         } else if (!dialogBoxes.isDialogOpen()) {
-            distFromBottom = Math.max(0, contentH - scrollY - viewport); // Remember where viewer is sitting, skipped while dialog open
+            distFromBottom = contentH - scrollY - viewport; // Remember where viewer is sitting, skipped while dialog open
         }
 
         lastViewport = viewport;
