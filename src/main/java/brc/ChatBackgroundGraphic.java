@@ -1,7 +1,11 @@
 package brc;
 
+import brc.internal.ChatGeometry;
+import brc.internal.Widgets;
 import net.runelite.api.Client;
 import net.runelite.api.FontTypeFace;
+import net.runelite.api.annotations.Component;
+import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.gameval.VarbitID;
@@ -9,7 +13,11 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.WidgetType;
+import net.runelite.client.eventbus.Subscribe;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class ChatBackgroundGraphic {
     // Manually-cobbled chat box border
     private static final int CORNER_SIZE = 32;
@@ -30,7 +38,7 @@ public class ChatBackgroundGraphic {
     private static final int TAB_STOCK_GAP = 6;
     private static final int TAB_STOCK_MARGIN = 5;
     private static final int[] TAB_STOCK_X = { 458, 396, 334, 272, 210, 148, 86 };
-    private static final int[] CHAT_TAB_BUTTONS = {
+    @Component private static final int[] CHAT_TAB_BUTTONS = {
         InterfaceID.Chatbox.CHAT_ALL,
         InterfaceID.Chatbox.CHAT_GAME,
         InterfaceID.Chatbox.CHAT_PUBLIC,
@@ -39,7 +47,7 @@ public class ChatBackgroundGraphic {
         InterfaceID.Chatbox.CHAT_CLAN,
         InterfaceID.Chatbox.CHAT_TRADE,
     };
-    private static final int[] CHAT_TAB_GRAPHICS = {
+    @Component private static final int[] CHAT_TAB_GRAPHICS = {
         InterfaceID.Chatbox.CHAT_ALL_GRAPHIC,
         InterfaceID.Chatbox.CHAT_GAME_GRAPHIC,
         InterfaceID.Chatbox.CHAT_PUBLIC_GRAPHIC,
@@ -59,25 +67,32 @@ public class ChatBackgroundGraphic {
     private static final int CORNER_BLEED_TRIM = 1;
 
     private final Client client;
-    private final BetterResizableChatConfig config;
+    private final ChatResizerConfig config;
 
     private Widget[] borderPieces;
 
-    ChatBackgroundGraphic(Client client, BetterResizableChatConfig config) {
+    @Inject
+    ChatBackgroundGraphic(Client client, ChatResizerConfig config) {
         this.client = client;
         this.config = config;
     }
 
-    // Stretch the background sprite so the baked-in edges get clipped, args are absolute target dims
-    void zoomBakedSprite(int widthChange, int heightChange) {
+    // Transparent chat draws no border; drop the pieces so we don't re-assert them onto the transparent box
+    @Subscribe
+    public void onVarbitChanged(VarbitChanged event) {
+        if (event.getVarbitId() == VarbitID.CHATBOX_TRANSPARENCY && event.getValue() == 1) destroyBorder();
+    }
+
+    // Stretch the background sprite so the baked-in edges get clipped
+    void zoomBakedSprite(int targetW, int targetH) {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background == null) return;
         Widget body = getBackgroundBody(background);
         if (body == null) return;
 
         // Must use setWidth/setHeight here
-        BetterResizableChatPlugin.setWidth(body, widthChange + BACKGROUND_STRETCH_X * 2);
-        BetterResizableChatPlugin.setHeight(body, heightChange + BACKGROUND_STRETCH_Y * 2);
+        Widgets.setWidth(body, targetW + BACKGROUND_STRETCH_X * 2);
+        Widgets.setHeight(body, targetH + BACKGROUND_STRETCH_Y * 2);
         body.setForcedPosition(body.getOriginalX() - BACKGROUND_STRETCH_X, body.getOriginalY() - BACKGROUND_STRETCH_Y);
         body.setSpriteTiling(false);
 
@@ -183,8 +198,8 @@ public class ChatBackgroundGraphic {
         if (tabs == null) return;
 
         // Update background graphic width, gaps between tab buttons
-        controls.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
-        graphic.setOriginalWidth(BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw);
+        controls.setOriginalWidth(ChatGeometry.CHATBOX_SPRITE_W + dw);
+        graphic.setOriginalWidth(ChatGeometry.CHATBOX_SPRITE_W + dw);
 
         // Adjust chat tab button widths, graphics, and labels
         boolean resize = config.resizeTabButtons();
@@ -208,7 +223,7 @@ public class ChatBackgroundGraphic {
         Widget[] tabs = getTabs();
         if (tabs == null) return true;
 
-        if (controls.getWidth() != BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw) return false;
+        if (controls.getWidth() != ChatGeometry.CHATBOX_SPRITE_W + dw) return false;
 
         boolean resize = config.resizeTabButtons();
         int n = tabs.length, stonesTW = stonesTotal(dw, n), gapsTW = gapsTotal(dw, n);
@@ -224,8 +239,8 @@ public class ChatBackgroundGraphic {
         return true;
     }
 
-    // Tab index of a chat tab button's component id (equals its varc CHAT_VIEW value), or -1 if not a chat tab
-    static int tabIndexOf(int componentId) {
+    // Tab index of a chat tab button's component ID (equals its varc CHAT_VIEW value), or -1 if not a chat tab
+    static int tabIndexOf(@Component int componentId) {
         for (int i = 0; i < CHAT_TAB_BUTTONS.length; i++) if (CHAT_TAB_BUTTONS[i] == componentId) return i;
         return -1;
     }
@@ -274,20 +289,20 @@ public class ChatBackgroundGraphic {
     // Offset from the bar's right edge
     private static int tabStretchX(int i, int dw, int stones, int gaps, int n) {
         int x = TAB_STOCK_MARGIN + stones * i / n + gaps * i / (n - 1);
-        return BetterResizableChatPlugin.CHATBOX_SPRITE_W + dw - x - tabTargetW(i, stones, n);
+        return ChatGeometry.CHATBOX_SPRITE_W + dw - x - tabTargetW(i, stones, n);
     }
 
     // Left-align a label when its text is too wide to draw centered in its stone
     private static void alignLabel(Widget label, boolean measure, int stoneW) {
         int alignment = measure && labelOverflows(label, stoneW) ? WidgetTextAlignment.LEFT : WidgetTextAlignment.CENTER;
-        int originalX = alignment == 0 ? ALIGN_SHIFT : 0; // Default originalX is 0
+        int originalX = alignment == WidgetTextAlignment.LEFT ? ALIGN_SHIFT : 0; // Default originalX is 0
         if (label.getXTextAlignment() == alignment && label.getOriginalX() == originalX) return;
         label.setXTextAlignment(alignment);
         label.setOriginalX(originalX);
         label.revalidate(); // In case main apply short-circuits
     }
 
-    // Measure the label's text in its own font; tags like <col> are skipped by getTextWidth
+    // Measure the label's text in its own font (tags like <col> are skipped by getTextWidth)
     private static boolean labelOverflows(Widget label, int stoneW) {
         FontTypeFace font = label.getFont();
         String text = label.getText();

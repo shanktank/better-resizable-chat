@@ -1,22 +1,27 @@
 package brc;
 
+import brc.internal.Widgets;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
 import java.util.HashMap;
 import java.util.Map;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public final class RuneLiteHudAnchors {
     private final Client client;
-    private final BetterResizableChatConfig config;
+    private final ChatResizerConfig config;
 
     // Native MINUS reserve of each HUD container, captured once before we first override it
     private final Map<Integer, Integer> stockReserve = new HashMap<>();
 
     private boolean applied;
 
-    RuneLiteHudAnchors(Client client, BetterResizableChatConfig config) {
+    @Inject
+    RuneLiteHudAnchors(Client client, ChatResizerConfig config) {
         this.client = client;
         this.config = config;
     }
@@ -52,7 +57,7 @@ public final class RuneLiteHudAnchors {
         Widget parent = hud.getParent();
         if (parent == null) return;
         int nativeRendered = parent.getHeight() - base; // MINUS height resolves as parentHeight minus reserve
-        if (hud.getHeight() != nativeRendered) BetterResizableChatPlugin.setHeight(hud, nativeRendered);
+        if (hud.getHeight() != nativeRendered) Widgets.setHeight(hud, nativeRendered);
     }
 
     void restore() {

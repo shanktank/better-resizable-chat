@@ -1,5 +1,6 @@
 package brc;
 
+import brc.internal.SizeClamps;
 import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
@@ -10,8 +11,8 @@ import net.runelite.client.config.Range;
 import net.runelite.client.config.Units;
 import java.awt.Color;
 
-@ConfigGroup(BetterResizableChatConfig.GROUP)
-public interface BetterResizableChatConfig extends Config {
+@ConfigGroup(ChatResizerConfig.GROUP)
+public interface ChatResizerConfig extends Config {
     String GROUP = "betterresizablechat";
 
     // Resizable layout settings
@@ -24,8 +25,8 @@ public interface BetterResizableChatConfig extends Config {
     @ConfigSection(name = "Resizable layout", description = "Settings for resizable layout.", position = 0)
     String resizableLayoutSection = "resizableLayout";
 
+    @Range(min = SizeClamps.MIN_HEIGHT_CHANGE, max = SizeClamps.MAX_DIMENSION_CHANGE)
     @Units(Units.PIXELS)
-    @Range(min = -142)
     @ConfigItem(
         position = 1,
         keyName = HEIGHT_CHANGE,
@@ -37,8 +38,8 @@ public interface BetterResizableChatConfig extends Config {
         return 28;
     }
 
+    @Range(min = SizeClamps.MIN_WIDTH_CHANGE, max = SizeClamps.MAX_DIMENSION_CHANGE)
     @Units(Units.PIXELS)
-    @Range(min = -519)
     @ConfigItem(
         position = 2,
         keyName = WIDTH_CHANGE,
@@ -81,8 +82,8 @@ public interface BetterResizableChatConfig extends Config {
     @ConfigSection(name = "Fixed layout", description = "Settings for fixed layout.", position = 100)
     String fixedLayoutSection = "fixedLayout";
 
+    @Range(min = SizeClamps.MIN_HEIGHT_CHANGE, max = SizeClamps.MAX_DIMENSION_CHANGE)
     @Units(Units.PIXELS)
-    @Range(min = -142)
     @ConfigItem(
         position = 101,
         keyName = FIXED_HEIGHT_CHANGE,
@@ -118,8 +119,15 @@ public interface BetterResizableChatConfig extends Config {
 
     // Either layout settings
 
-    String UNGROW_FOR_DIALOGS = "ungrowForDialogs";
-    String ADJUST_HUD_ANCHORS = "adjustHudAnchors";
+    enum Revert {
+        UNGROW, UNSHRINK, BOTH, NEITHER;
+        public boolean ungrows() { return this == UNGROW || this == BOTH; }
+        public boolean unshrinks() { return this == UNSHRINK || this == BOTH; }
+    }
+
+    String REVERT_FOR_DIALOGS = "revertForDialogs";
+    String REVERT_FOR_MODALS = "revertForModals";
+    String ADJUST_HUD_ANCHORS = "adjustSnapAnchors";
     String TOGGLE_SHOW_CHAT = "toggleShowChat";
 
     @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
@@ -127,37 +135,54 @@ public interface BetterResizableChatConfig extends Config {
 
     @ConfigItem(
         position = 201,
-        keyName = TOGGLE_SHOW_CHAT,
-        name = "Toggle chat",
-        description = "Press to hide or unhide the chat box.<br>"
-                    + "In fixed layout, this requires 'Hideable chat' to be enabled.",
+        keyName = REVERT_FOR_DIALOGS,
+        name = "Revert for dialogs",
+        description = "Temporarily revert adjusted dimensions to stock while an NPC dialog, dialog options, etc, is open."
+                    + "<br>&nbsp;&nbsp; - Ungrow: revert grown dimensions (positive height/width change values)"
+                    + "<br>&nbsp;&nbsp; - Unshrink: revert shrunk dimensions (negative height/width change values)"
+                    + "<br>&nbsp;&nbsp; Recommended selection: BOTH",
         section = bothLayoutsSection
     )
-    default Keybind toggleShowChat() {
-        return Keybind.NOT_SET;
+    default Revert revertForDialogs() {
+        return Revert.BOTH;
     }
 
     @ConfigItem(
         position = 202,
-        keyName = UNGROW_FOR_DIALOGS,
-        name = "Revert size during dialogs",
-        description = "Return the chat box to its default size while an NPC dialog, dialog options, etc., is open.",
+        keyName = REVERT_FOR_MODALS,
+        name = "Revert for interfaces",
+        description = "Temporarily revert adjusted height to stock size while an interface overlay (bank, settings, etc.) is open."
+                    + "<br>&nbsp;&nbsp; - Ungrow: revert grown height (positive height change values)"
+                    + "<br>&nbsp;&nbsp; - Unshrink: revert shrunk height (negative height change values)"
+                    + "<br>&nbsp;&nbsp; Recommended selection: UNGROW"
+                    + "<br>Fixed layout always ungrows; its modals are a fixed size that cannot be re-fit above a taller chat.",
         section = bothLayoutsSection
     )
-    default boolean ungrowForDialogs() {
-        return true;
+    default Revert revertForModals() {
+        return Revert.UNGROW;
     }
 
     @ConfigItem(
         position = 203,
         keyName = ADJUST_HUD_ANCHORS,
-        name = "Adjust HUD snap anchors",
-        description = "Move RuneLite's above-chat overlay snap anchors up to track the adjusted chat box.<br>"
-                    + "EXPERIMENTAL: MAY CAUSE MINOR ISSUES WITH CENTER MODALS (bank, settings, etc).",
+        name = "Adjust snap anchors",
+        description = "Move RuneLite's above-chat overlay HUD snap anchors up/down to track the adjusted chat box height.<br>"
+                    + "Recommended, but still somewhat experimental; may cause minor issues with center modals (bank, settings, etc).",
         section = bothLayoutsSection
     )
     default boolean adjustHudAnchors() {
-        return false;
+        return true;
+    }
+
+    @ConfigItem(
+        position = 204,
+        keyName = TOGGLE_SHOW_CHAT,
+        name = "Collapse chat box",
+        description = "Press to hide or unhide the chat box.<br>In fixed layout, this requires 'Hideable chat' to be enabled.",
+        section = bothLayoutsSection
+    )
+    default Keybind toggleShowChat() {
+        return Keybind.NOT_SET;
     }
 
     // Drag-resize settings
@@ -172,7 +197,7 @@ public interface BetterResizableChatConfig extends Config {
     @ConfigItem(
         position = 301,
         keyName = DRAG_MODIFIER,
-        name = "Keybind",
+        name = "Drag-resize",
         description = "Hold to resize chat by dragging its borders with the cursor. Unset to disable.",
         section = dragResizeSection
     )
@@ -184,7 +209,7 @@ public interface BetterResizableChatConfig extends Config {
         position = 302,
         keyName = LIVE_REWRAP,
         name = "Live re-wrap",
-        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
+        description = "Re-wrap chat text continuously while drag-resizing width instead of only on release.<br>"
                     + "May hurt FPS during drag-resizing on slower machines, disable to improve performance.",
         section = dragResizeSection
     )
@@ -202,5 +227,69 @@ public interface BetterResizableChatConfig extends Config {
     )
     default Color indicatorColor() {
         return Color.GREEN;
+    }
+
+    // Secondary size settings
+
+    enum Mode { HOLD, TOGGLE }
+
+    String SWAP_HEIGHT_CHANGE = "swapHeightChange";
+    String SWAP_WIDTH_CHANGE = "swapWidthChange";
+    String SWAP_SIZE_KEYBIND = "swapSizeKeybind";
+    String SWAP_SIZE_MODE = "swapSizeMode";
+
+    @ConfigSection(name = "Secondary size", description = "Switch chat to a different size using a keybind.", position = 400, closedByDefault = true)
+    String secondarySizeSection = "secondarySize";
+
+    @Range(min = SizeClamps.MIN_HEIGHT_CHANGE, max = SizeClamps.MAX_DIMENSION_CHANGE)
+    @Units(Units.PIXELS)
+    @ConfigItem(
+        position = 401,
+        keyName = SWAP_HEIGHT_CHANGE,
+        name = "Height change",
+        description = "Height change while the secondary size is active. Applies in both layouts.<br>"
+                    + "Like the primary height change value, this is applied relative to stock chat height.",
+        section = secondarySizeSection
+    )
+    default int secondaryHeightChange() {
+        return 0;
+    }
+
+    @Range(min = SizeClamps.MIN_WIDTH_CHANGE, max = SizeClamps.MAX_DIMENSION_CHANGE)
+    @Units(Units.PIXELS)
+    @ConfigItem(
+        position = 402,
+        keyName = SWAP_WIDTH_CHANGE,
+        name = "Width change",
+        description = "Width change while the secondary size is active (ignored in fixed layout).<br>"
+                    + "Like the primary width change value, this is applied relative to stock chat width.",
+        section = secondarySizeSection
+    )
+    default int secondaryWidthChange() {
+        return 0;
+    }
+
+    @ConfigItem(
+        position = 403,
+        keyName = SWAP_SIZE_MODE,
+        name = "Mode",
+        description = "Secondary size keybind press behavior."
+                    + "<br>&nbsp;&nbsp; - Hold: use the secondary size only while the key is held"
+                    + "<br>&nbsp;&nbsp; - Toggle: switch between the primary and secondary sizes on each press",
+        section = secondarySizeSection
+    )
+    default Mode secondaryMode() {
+        return Mode.HOLD;
+    }
+
+    @ConfigItem(
+        position = 404,
+        keyName = SWAP_SIZE_KEYBIND,
+        name = "Swap",
+        description = "Switches the chat to (or from) the secondary size. Unset to disable.",
+        section = secondarySizeSection
+    )
+    default Keybind secondaryKeybind() {
+        return Keybind.NOT_SET;
     }
 }

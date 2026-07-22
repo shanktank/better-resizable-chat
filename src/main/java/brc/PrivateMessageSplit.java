@@ -1,43 +1,57 @@
 package brc;
 
+import brc.internal.ChatGeometry;
+import brc.internal.Widgets;
 import net.runelite.api.Client;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetSizeMode;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class PrivateMessageSplit {
     private final Client client;
-    private final BetterResizableChatConfig config;
+    private final ChatResizerConfig config;
 
     private boolean pmBoxResized;
 
-    PrivateMessageSplit(Client client, BetterResizableChatConfig config) {
+    @Inject
+    PrivateMessageSplit(Client client, ChatResizerConfig config) {
         this.client = client;
         this.config = config;
     }
 
-    void resizePmBox(Integer slotW) {
-        if (slotW == null || !config.rewrapPrivateChat()) { // Revert or disable
-            if (!pmBoxResized) return;
-            pmBoxResized = false;
-            slotW = BetterResizableChatPlugin.CHATBOX_SPRITE_W;
-        } else { // Enable or update
+    void resizePmBox(int slotW) {
+        if (!config.rewrapPrivateChat()) { // Setting disabled: revert once if resized earlier
+            restorePmBox();
+        } else {
             pmBoxResized = true;
+            setPmBoxWidth(slotW);
         }
+    }
 
+    void restorePmBox() {
+        if (!pmBoxResized) return;
+        pmBoxResized = false;
+        setPmBoxWidth(ChatGeometry.CHATBOX_SPRITE_W);
+    }
+
+    private void setPmBoxWidth(int slotW) {
         Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
         if (pmChat == null) return; // Split private chat off or box not built yet
         Widget pmContainer = pmChat.getParent();
         if (pmContainer == null) return;
 
-        if (pmContainer.getWidthMode() != WidgetSizeMode.ABSOLUTE) return; // Fixed layout uses an absolute container
+        // Don't touch the fixed layout's MINUS-width container
+        if (pmContainer.getWidthMode() != WidgetSizeMode.ABSOLUTE) return;
 
         if (pmContainer.getOriginalWidth() != slotW) {
             pmContainer.setOriginalWidth(slotW);
             pmContainer.revalidate();
         }
 
-        if (pmChat.getWidth() != slotW) BetterResizableChatPlugin.setWidth(pmChat, slotW);
+        if (pmChat.getWidth() != slotW) Widgets.setWidth(pmChat, slotW);
     }
 
     // Bottom-anchored within PmChat.CONTAINER but resolves against client root
@@ -45,7 +59,7 @@ public class PrivateMessageSplit {
         Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
         if (pmChat == null) return; // Split private chat off or box not built yet
         if (pmChat.getHeight() == height) return; // Already positioned
-        BetterResizableChatPlugin.setHeight(pmChat, height); // Must use literal width
-        BetterResizableChatPlugin.revalidateChildren(pmChat);
+        Widgets.setHeight(pmChat, height); // Must use literal height
+        Widgets.revalidateChildren(pmChat);
     }
 }
