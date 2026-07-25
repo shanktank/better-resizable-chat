@@ -78,6 +78,7 @@ public class ChatResizerPlugin extends Plugin {
         keyManager.registerKeyListener(hideChatHotkey);
         keyManager.registerKeyListener(swapSizeHotkey);
         keyManager.registerKeyListener(dragResizeActuator.getKeyListener());
+        keyManager.registerKeyListener(hudAnchors.dragHotkeyListener); // Track RuneLite's overlay-management mode
         mouseManager.registerMouseListener(dragResizeActuator);
         overlayManager.add(dragResizePreview);
 
@@ -96,6 +97,7 @@ public class ChatResizerPlugin extends Plugin {
         keyManager.unregisterKeyListener(hideChatHotkey);
         keyManager.unregisterKeyListener(swapSizeHotkey);
         keyManager.unregisterKeyListener(dragResizeActuator.getKeyListener());
+        keyManager.unregisterKeyListener(hudAnchors.dragHotkeyListener);
         mouseManager.unregisterMouseListener(dragResizeActuator);
         overlayManager.remove(dragResizePreview);
         dragResizeActuator.reset();
@@ -135,6 +137,7 @@ public class ChatResizerPlugin extends Plugin {
         eventBus.register(events);
         eventBus.register(fixedChat); // Fixed-mode tab collapse consumes its own menu clicks
         eventBus.register(bgGraphic); // Drops the border when chat transparency turns on
+        eventBus.register(hudAnchors.beforeDrawRestore); // Restores the interface band height after snap-corner read
     }
 
     // Safe to repeat while already unregistered; shutDown() relies on that
@@ -144,6 +147,7 @@ public class ChatResizerPlugin extends Plugin {
         if (e != null) eventBus.unregister(e);
         eventBus.unregister(fixedChat);
         eventBus.unregister(bgGraphic);
+        eventBus.unregister(hudAnchors.beforeDrawRestore);
     }
 
     // Editing these while the secondary size is showing would change nothing on screen; drop back so edit is visible
@@ -164,11 +168,11 @@ public class ChatResizerPlugin extends Plugin {
             || clampGateChanged(key); // A dialog gate moves width too; a modal gate rides along for the same re-fit
     }
 
-    // The HUD anchors count: resizable's modal slots hang off the container they resize, so toggling
-    // them re-carves the band an open modal is fitted to exactly like a height change does
+    // Refitting interfaces counts as a band change: it resizes the container an open modal is
+    // fitted into, so toggling it must re-fit that modal exactly like a height change does
     private boolean heightChanged(String key) {
         return key.equals(ChatResizerConfig.HEIGHT_CHANGE) || key.equals(ChatResizerConfig.SWAP_HEIGHT_CHANGE)
-            || key.equals(ChatResizerConfig.ADJUST_HUD_ANCHORS) || clampGateChanged(key);
+            || key.equals(ChatResizerConfig.GROW_INTERFACES) || clampGateChanged(key);
     }
 
     // Either overlay's revert gate: with that overlay open, changing it re-clamps and moves the chat on the spot
@@ -184,8 +188,8 @@ public class ChatResizerPlugin extends Plugin {
         reapplySizes(true, true);
     }
 
-    // Config value or the live size set changed: re-apply, re-wrap, and re-fit. bandChanged covers anything that moves
-    // the band a top-level modal is sized against: the chat's own height, and the HUD-anchor reserve above it.
+    // Config value or the live size set changed: re-apply, re-wrap, and re-fit. bandChanged covers anything that
+    // moves the band a top-level modal is sized against: the chat's own height, and the interface-refit toggle.
     private void reapplySizes(boolean widthChanged, boolean bandChanged) {
         if (events == null) return; // Reached through an AWT-thread hop, whose queue outlives registration
         scrollKeep.sync();
@@ -327,9 +331,9 @@ public class ChatResizerPlugin extends Plugin {
 
         @Subscribe
         private void onScriptPreFired(ScriptPreFired event) {
-            // A grown chat is about to ungrow for an opening modal: pretend the anchors
-            // never moved, so it lays itself out against the full space it is about to get
-            if (config.adjustHudAnchors() && config.revertForModals().ungrows() &&
+            // A grown chat is about to ungrow for an opening modal: present the container's stock
+            // height now, so the modal lays itself out against the full space it is about to get
+            if (config.growInterfaces() && config.revertForModals().ungrows() &&
                 resizable.effectiveHeightChange(false) > 0 &&
                 !mainModals.isModalOpen() && mainModals.isTopLevelModalOpen()
             ) {
@@ -402,6 +406,8 @@ public class ChatResizerPlugin extends Plugin {
             // Publish the current chat rectangle, layout and window-derived size ceilings for resize band management
             Widget slot = Widgets.chatSlot(client);
             dragResizeActuator.update(slot == null ? null : Widgets.liveBounds(slot), !client.isResized(), client.getCanvasWidth(), client.getCanvasHeight());
+
+            hudAnchors.presentAnchorHeight();
         }
 
         @Subscribe

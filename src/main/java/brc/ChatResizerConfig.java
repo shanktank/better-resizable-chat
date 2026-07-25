@@ -21,6 +21,7 @@ public interface ChatResizerConfig extends Config {
     String WIDTH_CHANGE = "widthChange";
     String REWRAP_PRIVATE_CHAT = "rewrapPrivateChat";
     String RESIZE_TAB_BUTTONS = "resizeTabButtons";
+    String GROW_INTERFACES = "growInterfaces";
 
     @ConfigSection(name = "Resizable layout", description = "Settings for resizable layout.", position = 0)
     String resizableLayoutSection = "resizableLayout";
@@ -71,6 +72,17 @@ public interface ChatResizerConfig extends Config {
     )
     default boolean resizeTabButtons() {
         return false;
+    }
+
+    @ConfigItem(
+        position = 5,
+        keyName = GROW_INTERFACES,
+        name = "Grow interface height",
+        description = "Grow interfaces (bank, settings, etc.) into the space a shrunk chat box frees up.<br>",
+        section = resizableLayoutSection
+    )
+    default boolean growInterfaces() {
+        return true;
     }
 
     // Fixed layout settings
@@ -127,7 +139,6 @@ public interface ChatResizerConfig extends Config {
 
     String REVERT_FOR_DIALOGS = "revertForDialogs";
     String REVERT_FOR_MODALS = "revertForModals";
-    String ADJUST_HUD_ANCHORS = "adjustSnapAnchors";
     String TOGGLE_SHOW_CHAT = "toggleShowChat";
 
     @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
@@ -164,18 +175,6 @@ public interface ChatResizerConfig extends Config {
 
     @ConfigItem(
         position = 203,
-        keyName = ADJUST_HUD_ANCHORS,
-        name = "Adjust snap anchors",
-        description = "Move RuneLite's above-chat overlay HUD snap anchors up/down to track the adjusted chat box height.<br>"
-                    + "Recommended, but still somewhat experimental; may cause minor issues with center modals (bank, settings, etc).",
-        section = bothLayoutsSection
-    )
-    default boolean adjustHudAnchors() {
-        return true;
-    }
-
-    @ConfigItem(
-        position = 204,
         keyName = TOGGLE_SHOW_CHAT,
         name = "Collapse chat box",
         description = "Press to hide or unhide the chat box.<br>In fixed layout, this requires 'Hideable chat' to be enabled.",

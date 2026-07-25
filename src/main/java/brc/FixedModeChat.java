@@ -104,7 +104,7 @@ public class FixedModeChat {
 
         int backgroundH = Math.max(0, targetH - TAB_BAR_H); // Excludes the tab bar, and is gone once shrink reaches it
         int minViewH = config.fixedAdjustViewport() ? 0 : STOCK_MAIN_H; // Handle chat height above stock
-        int chatBandH = Math.max(minViewH, targetY - MAIN_TOP); // Band above the chat; HUD anchors follow this
+        int chatBandH = Math.max(minViewH, targetY - MAIN_TOP); // Band above the chat the viewport must fill
         int mainH = Math.max(chatBandH, heldY - MAIN_TOP); // Viewport keeps held band but must always reach chat top
         int viewportBottom = MAIN_TOP + mainH;
         int pmH = targetY - MAIN_TOP; // Split-PM box height so its bottom lands at the chat top
@@ -121,7 +121,6 @@ public class FixedModeChat {
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
             if (dialogOpen) dialogBoxes.centerDialogs();
-            sizeHudAnchor(targetY, chatBandH);
             return new Dimension(STOCK_W, targetH);
         }
 
@@ -132,7 +131,6 @@ public class FixedModeChat {
         bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
         pmSplit.resizePmBoxFixed(pmH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable
-        sizeHudAnchor(targetY, chatBandH);
         return new Dimension(STOCK_W, targetH);
     }
 
@@ -166,7 +164,6 @@ public class FixedModeChat {
         extendViewportBorders(STOCK_Y); // Reset side borders to stock
         pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP);
         dialogBoxes.resetDialogPositions();
-        sizeHudAnchor(STOCK_Y, STOCK_MAIN_H);
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();
     }
@@ -257,15 +254,5 @@ public class FixedModeChat {
         if (tile) border.setSpriteTiling(true); // Repeat the texture instead of stretching its detail
         border.setOriginalHeight(h);
         border.revalidate();
-    }
-
-    // Anchors follow the band above the chat; adjustHudAnchors additionally tracks a grown chat over a stock viewport
-    private void sizeHudAnchor(int targetY, int chatBandH) {
-        Widget hud = client.getWidget(InterfaceID.Toplevel.OVERLAY_HUD);
-        if (hud == null) return;
-        int h = config.adjustHudAnchors() ? Math.max(0, targetY - MAIN_TOP) : chatBandH;
-        if (hud.getHeight() == h) return;
-        Widgets.setHeight(hud, h); // Must use literal height
-        Widgets.revalidateChildren(hud);
     }
 }
