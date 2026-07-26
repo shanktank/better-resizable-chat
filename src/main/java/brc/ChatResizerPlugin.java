@@ -54,6 +54,7 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private RuneLiteHudAnchors hudAnchors;
     @Inject private TopLevelModals mainModals;
     @Inject private OverlayTransitions transitions;
+    @Inject private ChatDialogBoxes dialogBoxes;
     @Inject private ChatBackgroundGraphic bgGraphic;
     @Inject private FixedModeChat fixedChat;
     @Inject private ResizableModeChat resizable;
@@ -114,6 +115,7 @@ public class ChatResizerPlugin extends Plugin {
                 ChatRebuild.now(client, RawScripts.REWRAPS_CHAT); // Re-anchor lines to restored stock height this frame
                 if (mainModals.isTopLevelModalOpen()) mainModals.relayout(); // Re-fit an open modal back to stock band
             }
+            if (dialogBoxes.isDialogOpen()) dialogBoxes.resetDialogPositions(); // Fix position of open dialog
             rlInput.refit(); // Frame loop is off by now, so re-center an open input prompt on the restored width here
             scrollKeep.sync();
         });
