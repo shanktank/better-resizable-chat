@@ -91,6 +91,7 @@ public class ResizableModeChat {
             bgGraphic.zoomBakedSprite(slotW, backgroundH);
             if (dialogOpen) dialogBoxes.centerDialogs();
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of enable with 0/0 change
+            bgGraphic.syncBorderVisibility();
             pmSplit.resizePmBox(slotW);
             sizeHpBarBand(slotH);
             return new Dimension(slotW, slotH);

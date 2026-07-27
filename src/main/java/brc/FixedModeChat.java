@@ -118,6 +118,7 @@ public class FixedModeChat {
         ) {
             bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
             if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/rebuild
+            bgGraphic.syncBorderVisibility();
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
             if (dialogOpen) dialogBoxes.centerDialogs();

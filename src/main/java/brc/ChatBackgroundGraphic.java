@@ -156,6 +156,19 @@ public class ChatBackgroundGraphic {
             borderPieces[i].setSize(rects[i][2], rects[i][3]);
             borderPieces[i].revalidate();
         }
+
+        syncBorderVisibility();
+    }
+
+    // Hide our chat border if chat box is hidden by game (e.g. during a cutscene)
+    void syncBorderVisibility() {
+        if (borderPieces == null) return;
+        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
+        if (background == null) return;
+
+        Widget body = getBackgroundBody(background);
+        boolean hidden = body == null || body.isHidden();
+        for (Widget piece : borderPieces) if (piece != null && piece.isSelfHidden() != hidden) piece.setHidden(hidden);
     }
 
     void destroyBorder() {
