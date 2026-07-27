@@ -55,7 +55,6 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private TopLevelModals mainModals;
     @Inject private OverlayTransitions transitions;
     @Inject private ChatDialogBoxes dialogBoxes;
-    @Inject private ChatBackgroundGraphic bgGraphic;
     @Inject private FixedModeChat fixedChat;
     @Inject private ResizableModeChat resizable;
     @Inject private ChatScrollRetainer scrollKeep;
@@ -138,7 +137,6 @@ public class ChatResizerPlugin extends Plugin {
         events = new Events();
         eventBus.register(events);
         eventBus.register(fixedChat); // Fixed-mode tab collapse consumes its own menu clicks
-        eventBus.register(bgGraphic); // Drops the border when chat transparency turns on
         eventBus.register(hudAnchors.beforeDrawRestore); // Restores the interface band height after snap-corner read
     }
 
@@ -148,7 +146,6 @@ public class ChatResizerPlugin extends Plugin {
         events = null; // Disarm first, before the unsubscribes
         if (e != null) eventBus.unregister(e);
         eventBus.unregister(fixedChat);
-        eventBus.unregister(bgGraphic);
         eventBus.unregister(hudAnchors.beforeDrawRestore);
     }
 

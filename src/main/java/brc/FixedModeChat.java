@@ -117,8 +117,7 @@ public class FixedModeChat {
             (main == null || main.getHeight() == mainH)
         ) {
             bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
-            if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of hop/rebuild
-            bgGraphic.syncBorderVisibility();
+            bgGraphic.syncBorder(chatArea, dialogOpen, false); // Recreate if dropped, else re-sync visibility
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
             if (dialogOpen) dialogBoxes.centerDialogs();
@@ -128,7 +127,7 @@ public class FixedModeChat {
         sizeChat(slot, universe, targetY, targetH);
         sizeViewport(main, mainH);
         extendViewportBorders(viewportBottom);
-        bgGraphic.drawBorder(chatArea);
+        bgGraphic.syncBorder(chatArea, dialogOpen, true);
         bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
         pmSplit.resizePmBoxFixed(pmH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable

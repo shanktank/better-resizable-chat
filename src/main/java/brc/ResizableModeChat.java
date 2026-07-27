@@ -90,8 +90,7 @@ public class ResizableModeChat {
             bgGraphic.resizeTabBar(widthChange);
             bgGraphic.zoomBakedSprite(slotW, backgroundH);
             if (dialogOpen) dialogBoxes.centerDialogs();
-            if (!bgGraphic.borderPresent(chatArea)) bgGraphic.drawBorder(chatArea); // In case of enable with 0/0 change
-            bgGraphic.syncBorderVisibility();
+            bgGraphic.syncBorder(chatArea, dialogOpen, false); // Recreate if dropped, else re-sync visibility
             pmSplit.resizePmBox(slotW);
             sizeHpBarBand(slotH);
             return new Dimension(slotW, slotH);
@@ -110,7 +109,7 @@ public class ResizableModeChat {
 
         bgGraphic.resizeTabBar(widthChange); // Must resize before cascading revalidate
         Widgets.revalidateChildren(universe);
-        bgGraphic.drawBorder(chatArea);
+        bgGraphic.syncBorder(chatArea, dialogOpen, true);
         bgGraphic.zoomBakedSprite(slotW, backgroundH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand
         pmSplit.resizePmBox(slotW);

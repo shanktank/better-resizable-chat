@@ -5,7 +5,6 @@ import brc.internal.Widgets;
 import net.runelite.api.Client;
 import net.runelite.api.FontTypeFace;
 import net.runelite.api.annotations.Component;
-import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.gameval.VarbitID;
@@ -13,7 +12,6 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.WidgetType;
-import net.runelite.client.eventbus.Subscribe;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -77,12 +75,6 @@ public class ChatBackgroundGraphic {
         this.config = config;
     }
 
-    // Transparent chat draws no border; drop the pieces so we don't re-assert them onto the transparent box
-    @Subscribe
-    public void onVarbitChanged(VarbitChanged event) {
-        if (event.getVarbitId() == VarbitID.CHATBOX_TRANSPARENCY && event.getValue() == 1) destroyBorder();
-    }
-
     // Stretch the background sprite so the baked-in edges get clipped
     void zoomBakedSprite(int targetW, int targetH) {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
@@ -121,9 +113,7 @@ public class ChatBackgroundGraphic {
     }
 
     // Add border pieces and position them as children of CHATAREA since CHAT_BACKGROUND is finicky
-    void drawBorder(Widget chatArea) {
-        if (client.getVarbitValue(VarbitID.CHATBOX_TRANSPARENCY) == 1) return;
-
+    private void drawBorder(Widget chatArea) {
         if (!borderPresent(chatArea)) {
             borderPieces = new Widget[BORDER_SPRITES.length];
             for (int i = 0; i < BORDER_SPRITES.length; i++) {
@@ -160,17 +150,6 @@ public class ChatBackgroundGraphic {
         syncBorderVisibility();
     }
 
-    // Hide our chat border if chat box is hidden by game (e.g. during a cutscene)
-    void syncBorderVisibility() {
-        if (borderPieces == null) return;
-        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
-        if (background == null) return;
-
-        Widget body = getBackgroundBody(background);
-        boolean hidden = body == null || body.isHidden();
-        for (Widget piece : borderPieces) if (piece != null && piece.isSelfHidden() != hidden) piece.setHidden(hidden);
-    }
-
     void destroyBorder() {
         if (borderPieces == null) return;
 
@@ -190,7 +169,7 @@ public class ChatBackgroundGraphic {
     }
 
     // True when all border pieces are live under the latest widget
-    boolean borderPresent(Widget chatArea) {
+    private boolean borderPresent(Widget chatArea) {
         if (borderPieces == null) return false;
 
         for (Widget borderPiece : borderPieces) {
@@ -199,6 +178,30 @@ public class ChatBackgroundGraphic {
         }
 
         return true;
+    }
+
+    // Draw, refresh, or tear down chat border
+    void syncBorder(Widget chatArea, boolean dialogOpen, boolean reposition) {
+        if (!dialogOpen && client.isResized() && client.getVarbitValue(VarbitID.CHATBOX_TRANSPARENCY) == 1) {
+            destroyBorder(); // Hide if chat isn't transparent and a dialog isn't open (they're always opaque)
+        } else {
+            if (reposition || !borderPresent(chatArea)) { // Not present or we need to reposition
+                drawBorder(chatArea);
+            } else {
+                syncBorderVisibility();
+            }
+        }
+    }
+
+    // Hide our chat border if chat box is hidden by game (e.g. during a cutscene)
+    private void syncBorderVisibility() {
+        if (borderPieces == null) return;
+        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
+        if (background == null) return;
+
+        Widget body = getBackgroundBody(background);
+        boolean hidden = body == null || body.isHidden();
+        for (Widget piece : borderPieces) if (piece != null && piece.isSelfHidden() != hidden) piece.setHidden(hidden);
     }
 
     // Passing 0 resets behavior to stock
