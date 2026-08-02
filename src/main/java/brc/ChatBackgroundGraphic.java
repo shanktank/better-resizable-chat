@@ -7,7 +7,6 @@ import net.runelite.api.FontTypeFace;
 import net.runelite.api.annotations.Component;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.SpriteID;
-import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
 import net.runelite.api.widgets.WidgetTextAlignment;
@@ -80,7 +79,7 @@ public class ChatBackgroundGraphic {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background == null) return;
         Widget body = getBackgroundBody(background);
-        if (body == null) return;
+        if (!isParchment(body)) return; // No sprite to clip while the chat draws transparent or blanked
 
         // Must use setWidth/setHeight here
         Widgets.setWidth(body, targetW + BACKGROUND_STRETCH_X * 2);
@@ -103,7 +102,7 @@ public class ChatBackgroundGraphic {
             background.revalidate();
 
             Widget body = getBackgroundBody(background);
-            if (body != null) {
+            if (isParchment(body)) {
                 // Revert background sprite zoom
                 body.setSpriteTiling(true);
                 body.setForcedPosition(-1, -1);
@@ -113,7 +112,7 @@ public class ChatBackgroundGraphic {
     }
 
     // Add border pieces and position them as children of CHATAREA since CHAT_BACKGROUND is finicky
-    private void drawBorder(Widget chatArea) {
+    private void drawBorder(Widget chatArea, Widget parchment) {
         if (!borderPresent(chatArea)) {
             borderPieces = new Widget[BORDER_SPRITES.length];
             for (int i = 0; i < BORDER_SPRITES.length; i++) {
@@ -147,7 +146,7 @@ public class ChatBackgroundGraphic {
             borderPieces[i].revalidate();
         }
 
-        syncBorderVisibility();
+        syncBorderVisibility(parchment);
     }
 
     void destroyBorder() {
@@ -180,27 +179,27 @@ public class ChatBackgroundGraphic {
         return true;
     }
 
-    // Draw, refresh, or tear down chat border
-    void syncBorder(Widget chatArea, boolean dialogOpen, boolean reposition) {
-        if (!dialogOpen && client.isResized() && client.getVarbitValue(VarbitID.CHATBOX_TRANSPARENCY) == 1) {
-            destroyBorder(); // Hide if chat isn't transparent and a dialog isn't open (they're always opaque)
+    // Draw, refresh, or tear down chat border, keyed on how the engine has built the background this frame
+    void syncBorder(Widget chatArea, boolean reposition) {
+        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
+        Widget body = background == null ? null : getBackgroundBody(background);
+
+        if (body == null) {
+            syncBorderVisibility(null); // Box blanked (e.g. a cutscene): keep the pieces parked and hidden
+        } else if (!isParchment(body)) {
+            destroyBorder(); // Transparent chat draws gradient bands instead of parchment, so there's nothing to frame
+        } else if (reposition || !borderPresent(chatArea)) { // Not present or we need to reposition
+            drawBorder(chatArea, body);
         } else {
-            if (reposition || !borderPresent(chatArea)) { // Not present or we need to reposition
-                drawBorder(chatArea);
-            } else {
-                syncBorderVisibility();
-            }
+            syncBorderVisibility(body);
         }
     }
 
-    // Hide our chat border if chat box is hidden by game (e.g. during a cutscene)
-    private void syncBorderVisibility() {
+    // Match the border to the parchment it frames, which the game hides or drops out from under us
+    private void syncBorderVisibility(Widget parchment) {
         if (borderPieces == null) return;
-        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
-        if (background == null) return;
 
-        Widget body = getBackgroundBody(background);
-        boolean hidden = body == null || body.isHidden();
+        boolean hidden = parchment == null || parchment.isHidden();
         for (Widget piece : borderPieces) if (piece != null && piece.isSelfHidden() != hidden) piece.setHidden(hidden);
     }
 
@@ -261,10 +260,16 @@ public class ChatBackgroundGraphic {
         return -1;
     }
 
+    // The engine rebuilds these to match how the chat actually draws: one parchment sprite when opaque (set opaque,
+    // or a dialog forcing it), gradient rectangles when transparent, and none at all while the box is blanked
     private Widget getBackgroundBody(Widget background) {
         Widget[] dynamic = background.getDynamicChildren();
         if (dynamic == null || dynamic.length == 0) return null;
         return dynamic[0];
+    }
+
+    private static boolean isParchment(Widget body) {
+        return body != null && body.getType() == WidgetType.GRAPHIC;
     }
 
     private Widget[] getTabs() {

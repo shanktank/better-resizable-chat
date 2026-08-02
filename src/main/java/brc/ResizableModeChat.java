@@ -24,6 +24,7 @@ public class ResizableModeChat {
     private final ChatDialogBoxes dialogBoxes;
     private final TopLevelModals mainModals;
     private final RuneLiteHudAnchors hudAnchors;
+    private final RuneLiteMovedChat movedChat;
 
     private int lastOpenTab; // Tab open before the chat was hidden, reopened on unhide
     private boolean lastCollapsed; // Collapse state the last apply() sized the slot to
@@ -34,7 +35,7 @@ public class ResizableModeChat {
         Client client, ChatResizerConfig config, SecondarySize swapSize,
         ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit,
         ChatDialogBoxes dialogBoxes, TopLevelModals mainModals,
-        RuneLiteHudAnchors hudAnchors
+        RuneLiteHudAnchors hudAnchors, RuneLiteMovedChat movedChat
     ) {
         this.client = client;
         this.config = config;
@@ -44,6 +45,7 @@ public class ResizableModeChat {
         this.dialogBoxes = dialogBoxes;
         this.mainModals = mainModals;
         this.hudAnchors = hudAnchors;
+        this.movedChat = movedChat;
     }
 
     // Adopt the chat size, then re-fit the UI and re-wrap lines when first enabling in resizable layout
@@ -80,6 +82,7 @@ public class ResizableModeChat {
         int backgroundH = Math.max(0, ChatGeometry.CHATBOX_SPRITE_H + heightChange);
 
         hudAnchors.sync(heightChange); // Vertically shift RuneLite's HUD anchors
+        movedChat.sync(slot, slotW, slotH); // Hold a RuneLite-moved chat's bottom edge still through the resize
 
         if (!force &&
             slot.getWidth() == slotW && slot.getHeight() == slotH &&
@@ -90,7 +93,7 @@ public class ResizableModeChat {
             bgGraphic.resizeTabBar(widthChange);
             bgGraphic.zoomBakedSprite(slotW, backgroundH);
             if (dialogOpen) dialogBoxes.centerDialogs();
-            bgGraphic.syncBorder(chatArea, dialogOpen, false); // Recreate if dropped, else re-sync visibility
+            bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             pmSplit.resizePmBox(slotW);
             sizeHpBarBand(slotH);
             return new Dimension(slotW, slotH);
@@ -109,7 +112,7 @@ public class ResizableModeChat {
 
         bgGraphic.resizeTabBar(widthChange); // Must resize before cascading revalidate
         Widgets.revalidateChildren(universe);
-        bgGraphic.syncBorder(chatArea, dialogOpen, true);
+        bgGraphic.syncBorder(chatArea, true);
         bgGraphic.zoomBakedSprite(slotW, backgroundH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand
         pmSplit.resizePmBox(slotW);
@@ -122,6 +125,8 @@ public class ResizableModeChat {
     void restore() {
         lastCollapsed = false;
         relayoutNeeded = false;
+
+        movedChat.restore(); // Before the slot goes back to stock height, which is what the point is handed back for
 
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (universe == null) return;
