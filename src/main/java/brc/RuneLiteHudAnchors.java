@@ -10,7 +10,12 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.config.RuneLiteConfig;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.ui.overlay.Overlay;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.util.HotkeyListener;
+import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
@@ -28,11 +33,12 @@ public final class RuneLiteHudAnchors {
     private final Map<Integer, Integer> stockReserve = new HashMap<>();
 
     private boolean applied;
-    private boolean swapped; // The snap-corner read is currently seeing a fake stock height, to be restored before draw
+    private boolean swapped; // A snap-corner read is currently seeing a fake stock height, to be restored after
 
-    // Fix visual location of bottom-right HUD anchor when drag hotkey is held
+    // Hold that fake height in place for as long as a snap corner can be dragged against it
     private boolean dragHotkeyHeld; // RuneLite's hotkey for moving HUD items and HUD snap anchors
     private RuneLiteConfig runeLiteConfig; // RuneLite core config holding that hotkey
+
     final HotkeyListener dragHotkeyListener = new HotkeyListener(this::runeLiteDragHotkey) {
         @Override public void hotkeyPressed() { dragHotkeyHeld = true; }
         @Override public void hotkeyReleased() { dragHotkeyHeld = false; }
@@ -40,12 +46,10 @@ public final class RuneLiteHudAnchors {
 
     final BeforeDrawRestore beforeDrawRestore = new BeforeDrawRestore();
 
-    // Restores the real band height after the snap-corner read, before the draw. A separate object
-    // because EventBus wants every BeforeRender handler named onBeforeRender (one per class).
-    final class BeforeDrawRestore {
-        // After OverlayRenderer's default-priority snap-corner read, before the draw
-        @Subscribe(priority = -1) void onBeforeRender(BeforeRender event) { restoreLayoutHeight(); }
-    }
+    // RuneLite reads the container again when it draws the snap corners' drag indicators, in an
+    // overlay pass that runs after the widgets: present the same stock height across that pass.
+    final Overlay indicatorPresent = new HeightSlice(this::presentAnchorHeight, OverlayPosition.DYNAMIC);
+    final Overlay indicatorRestore = new HeightSlice(this::restoreLayoutHeight, OverlayPosition.TOP_LEFT);
 
     @Inject
     RuneLiteHudAnchors(Client client, ChatResizerConfig config, ConfigManager configManager) {
@@ -85,8 +89,8 @@ public final class RuneLiteHudAnchors {
         applied = true;
     }
 
-    // Freeze the bottom-right snap corner: present the stock rendered height for OverlayRenderer's
-    // snap-corner read, at frame-loop end before that (default-priority) read. Resizable only.
+    // Freeze the bottom-right snap corner: present the stock rendered height for both reads that place
+    // it; OverlayRenderer's default-priority BeforeRender, then its indicator draw. Resizable only.
     void presentAnchorHeight() {
         // Gate on whether the band is actually overridden, not the toggle: a forced shrink (grow off) resizes it too
         swapped = applied && client.isResized() && presentStockRendered();
@@ -111,9 +115,8 @@ public final class RuneLiteHudAnchors {
         return true;
     }
 
-    // Undo presentAnchorHeight before the draw, so the band isn't clipped to stock.
-    // Held through the draw while the overlay drag hotkey is down: RuneLite draws the
-    // snap-corner indicator from the live container, so it would track the chat otherwise.
+    // Undo presentAnchorHeight, so the band isn't clipped to stock. Held while the overlay drag hotkey is
+    // down: a corner dragged in that mode is converted against the live container, on the AWT thread.
     private void restoreLayoutHeight() {
         if (!swapped || dragHotkeyHeld) return;
         swapped = false;
@@ -142,5 +145,34 @@ public final class RuneLiteHudAnchors {
         return client.getVarbitValue(VarbitID.RESIZABLE_STONE_ARRANGEMENT) == 1
             ? InterfaceID.ToplevelPreEoc.HUD_CONTAINER_FRONT
             : InterfaceID.ToplevelOsrsStretch.HUD_CONTAINER_FRONT;
+    }
+
+    // Restores the real band height after the snap-corner read, before the draw. A separate object
+    // because EventBus wants every BeforeRender handler named onBeforeRender (one per class).
+    final class BeforeDrawRestore {
+        // After OverlayRenderer's default-priority snap-corner read, before the draw
+        @Subscribe(priority = -1)
+        void onBeforeRender(BeforeRender event) {
+            restoreLayoutHeight();
+        }
+    }
+
+    // An empty overlay that exists for its render() timing. The indicators are DYNAMIC/PRIORITY_DEFAULT in
+    // ABOVE_WIDGETS, where DYNAMIC sorts by ascending priority and ahead of every positioned overlay.
+    private static final class HeightSlice extends Overlay {
+        private final Runnable slice;
+
+        HeightSlice(Runnable slice, OverlayPosition position) {
+            this.slice = slice;
+            setLayer(OverlayLayer.ABOVE_WIDGETS);
+            setPosition(position);
+            setPriority(PRIORITY_LOW);
+        }
+
+        @Override
+        public Dimension render(Graphics2D graphics) {
+            slice.run();
+            return null; // Draws nothing; the empty bounds keep it out of hit tests and the corner stack
+        }
     }
 }

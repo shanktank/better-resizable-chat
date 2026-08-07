@@ -81,6 +81,8 @@ public class ChatResizerPlugin extends Plugin {
         keyManager.registerKeyListener(hudAnchors.dragHotkeyListener); // Track RuneLite's overlay-management mode
         mouseManager.registerMouseListener(dragResizeActuator);
         overlayManager.add(dragResizePreview);
+        overlayManager.add(hudAnchors.indicatorPresent); // Bracket RuneLite's snap-corner indicator draw
+        overlayManager.add(hudAnchors.indicatorRestore);
 
         clientThread.invoke(() -> {
             // Injected singletons persist across disable -> enable; re-prime cached state before the enable path
@@ -100,6 +102,8 @@ public class ChatResizerPlugin extends Plugin {
         keyManager.unregisterKeyListener(hudAnchors.dragHotkeyListener);
         mouseManager.unregisterMouseListener(dragResizeActuator);
         overlayManager.remove(dragResizePreview);
+        overlayManager.remove(hudAnchors.indicatorPresent);
+        overlayManager.remove(hudAnchors.indicatorRestore);
         dragResizeActuator.reset();
 
         clientThread.invoke(() -> {
