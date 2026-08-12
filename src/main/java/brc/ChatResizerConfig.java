@@ -208,7 +208,7 @@ public interface ChatResizerConfig extends Config {
         position = 302,
         keyName = LIVE_REWRAP,
         name = "Live re-wrap",
-        description = "Re-wrap chat text continuously while drag-resizing width instead of only on release.<br>"
+        description = "Re-wrap chat text continuously while drag-resizing instead of only on release.<br>"
                     + "May hurt FPS during drag-resizing on slower machines, disable to improve performance.",
         section = dragResizeSection
     )

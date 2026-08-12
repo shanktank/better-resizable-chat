@@ -374,11 +374,9 @@ public class ChatResizerPlugin extends Plugin {
 
             if (dragging) {
                 Dimension size = apply(false);
-                // Only a width change needs a re-wrap: the scroll retainer covers height, and rebuilding for it
-                // every frame is what used to jitter the scroll. Resizable-only; fixed layout's width is locked.
                 Dimension last = dragResizeActuator.getLastDragSize();
-                if (client.isResized() && config.liveRewrap() && size != null && (last == null || size.width != last.width))
-                    client.runScript(RawScripts.RESIZES_CHAT);
+                if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last))
+                    client.runScript(RawScripts.RESIZES_CHAT); // Re-wrap text and move PM split
                 dragResizeActuator.setLastDragSize(size);
             } else {
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it

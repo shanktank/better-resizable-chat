@@ -119,7 +119,7 @@ public class FixedModeChat {
             bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
             bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
-            pmSplit.resizePmBoxFixed(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
+            pmSplit.setPmBoxHeight(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
             if (dialogOpen) dialogBoxes.centerDialogs();
             return new Dimension(STOCK_W, targetH);
         }
@@ -129,7 +129,7 @@ public class FixedModeChat {
         extendViewportBorders(viewportBottom);
         bgGraphic.syncBorder(chatArea, true);
         bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
-        pmSplit.resizePmBoxFixed(pmH);
+        pmSplit.setPmBoxHeight(pmH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable
         return new Dimension(STOCK_W, targetH);
     }
@@ -162,7 +162,7 @@ public class FixedModeChat {
         if (slot != null && !isStock(slot, universe)) sizeChat(slot, universe, STOCK_Y, STOCK_H);
         sizeViewport(client.getWidget(InterfaceID.Toplevel.MAIN), STOCK_MAIN_H);
         extendViewportBorders(STOCK_Y); // Reset side borders to stock
-        pmSplit.resizePmBoxFixed(STOCK_Y - MAIN_TOP);
+        pmSplit.setPmBoxHeight(STOCK_Y - MAIN_TOP);
         dialogBoxes.resetDialogPositions();
         bgGraphic.revertBakedSprite();
         bgGraphic.destroyBorder();

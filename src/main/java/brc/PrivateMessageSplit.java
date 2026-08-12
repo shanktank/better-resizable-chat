@@ -33,8 +33,20 @@ public class PrivateMessageSplit {
 
     void restorePmBox() {
         if (!pmBoxResized) return;
+
         pmBoxResized = false;
         setPmBoxWidth(ChatGeometry.CHATBOX_SPRITE_W);
+    }
+
+    // Fixed only: its lines sit a flat offset above the container's bottom, so the container places them.
+    // Resizable bakes the chat height into that offset instead, and there the rebuild owns the placement.
+    void setPmBoxHeight(int height) {
+        Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
+        if (pmChat == null) return; // Split private chat off or box not built yet
+        if (pmChat.getHeight() == height) return; // Already positioned
+
+        Widgets.setHeight(pmChat, height); // Must use literal height
+        Widgets.revalidateChildren(pmChat);
     }
 
     private void setPmBoxWidth(int slotW) {
@@ -52,14 +64,5 @@ public class PrivateMessageSplit {
         }
 
         if (pmChat.getWidth() != slotW) Widgets.setWidth(pmChat, slotW);
-    }
-
-    // Bottom-anchored within PmChat.CONTAINER but resolves against client root
-    void resizePmBoxFixed(int height) {
-        Widget pmChat = client.getWidget(InterfaceID.PmChat.CONTAINER);
-        if (pmChat == null) return; // Split private chat off or box not built yet
-        if (pmChat.getHeight() == height) return; // Already positioned
-        Widgets.setHeight(pmChat, height); // Must use literal height
-        Widgets.revalidateChildren(pmChat);
     }
 }
