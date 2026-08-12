@@ -9,6 +9,7 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetPositionMode;
+import net.runelite.api.widgets.WidgetSizeMode;
 import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.WidgetType;
 import javax.inject.Inject;
@@ -67,6 +68,7 @@ public class ChatBackgroundGraphic {
     private final ChatResizerConfig config;
 
     private Widget[] borderPieces;
+    private boolean trimmed;
 
     @Inject
     ChatBackgroundGraphic(Client client, ChatResizerConfig config) {
@@ -74,13 +76,36 @@ public class ChatBackgroundGraphic {
         this.config = config;
     }
 
-    // Stretch the background sprite so the baked-in edges get clipped
-    void zoomBakedSprite(int targetW, int targetH) {
+    // Fit the background to the box: zoom an opaque chat's parchment, re-stack a transparent one's gradient
+    void syncBackground(int targetW, int targetH) {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background == null) return;
         Widget body = getBackgroundBody(background);
-        if (!isParchment(body)) return; // No sprite to clip while the chat draws transparent or blanked
+        if (isParchment(body)) {
+            zoomBakedSprite(background, body, targetW, targetH);
+        } else { // Nothing to clip, so the zoom comes off entirely
+            untrimBackground(background);
+            stackGradientBands(background, targetH);
+        }
+    }
 
+    void revertBackground() {
+        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
+        if (background == null) return;
+        untrimBackground(background);
+        Widget body = getBackgroundBody(background);
+        if (isParchment(body)) {
+            // Revert background sprite zoom
+            body.setSpriteTiling(true);
+            body.setForcedPosition(-1, -1);
+            body.revalidate();
+        } else {
+            stackGradientBands(background, ChatGeometry.CHATBOX_SPRITE_H);
+        }
+    }
+
+    // Stretch the background sprite so the baked-in edges get clipped
+    private void zoomBakedSprite(Widget background, Widget body, int targetW, int targetH) {
         // Must use setWidth/setHeight here
         Widgets.setWidth(body, targetW + BACKGROUND_STRETCH_X * 2);
         Widgets.setHeight(body, targetH + BACKGROUND_STRETCH_Y * 2);
@@ -91,23 +116,35 @@ public class ChatBackgroundGraphic {
         background.setSize(CORNER_BLEED_TRIM, CORNER_BLEED_TRIM);
         background.setForcedPosition(0, CORNER_BLEED_TRIM);
         background.revalidate();
+        trimmed = true;
     }
 
-    void revertBakedSprite() {
-        Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
-        if (background != null) {
-            // Revert corner bleed adjustment
-            background.setSize(0, 0);
-            background.setForcedPosition(-1, -1);
-            background.revalidate();
+    // Revert the corner bleed adjustment; the engine restores the size on its own rebuilds but never the position
+    private void untrimBackground(Widget background) {
+        if (!trimmed) return;
+        trimmed = false;
+        background.setSize(0, 0);
+        background.setForcedPosition(-1, -1);
+        background.revalidate();
+    }
 
-            Widget body = getBackgroundBody(background);
-            if (isParchment(body)) {
-                // Revert background sprite zoom
-                body.setSpriteTiling(true);
-                body.setForcedPosition(-1, -1);
-                body.revalidate();
-            }
+    // A transparent chat draws as a stack of bands the engine cuts to the height it read on its last rebuild, so
+    // they hold that height through a resize. Re-cut them; the last band takes the remainder the division dropped.
+    private static void stackGradientBands(Widget background, int targetH) {
+        Widget[] bands = background.getDynamicChildren();
+        if (bands == null || bands.length == 0) return;
+        if (background.getHeight() != targetH) return; // Box isn't at our size, e.g. drawing small mid layout swap
+        if (targetH < bands.length) return; // Too short to divide: every band but the last would collapse to nothing
+
+        int n = bands.length, bandH = targetH / n;
+        for (int i = 0; i < n; i++) {
+            Widget band = bands[i];
+            if (band == null || band.getHeightMode() != WidgetSizeMode.ABSOLUTE) continue; // Fills on its own
+            int y = bandH * i, h = i == n - 1 ? targetH - y : bandH;
+            if (band.getOriginalY() == y && band.getOriginalHeight() == h) continue;
+            band.setOriginalY(y);
+            band.setOriginalHeight(h);
+            band.revalidate();
         }
     }
 

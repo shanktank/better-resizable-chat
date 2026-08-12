@@ -76,12 +76,12 @@ public class FixedModeChat {
 
     // Returns the applied slot size, or null if not in fixed layout / widgets missing
     Dimension apply(boolean force) {
-        Widget slot = client.getWidget(InterfaceID.Toplevel.CHAT_CONTAINER);
-        if (slot == null) return null; // Not fixed layout, or frame not built yet
         Widget universe = client.getWidget(InterfaceID.Chatbox.UNIVERSE);
         if (universe == null) return null;
-        Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
-        if (chatArea == null) return null;
+        Widget slot = universe.getParent();
+        if (slot == null || slot.getId() != InterfaceID.Toplevel.CHAT_CONTAINER) return null;
+        Widget chatArea = getChatArea(universe);
+        if (chatArea == null || chatArea.getId() != InterfaceID.Chatbox.CHATAREA) return null;
 
         boolean modalOpen = mainModals.isModalOpen();
         boolean dialogOpen = dialogBoxes.isDialogOpen();
@@ -116,7 +116,7 @@ public class FixedModeChat {
             universe.getWidth() == STOCK_W && universe.getHeight() == targetH &&
             (main == null || main.getHeight() == mainH)
         ) {
-            bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
+            bgGraphic.syncBackground(STOCK_W, backgroundH);
             bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.setPmBoxHeight(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
@@ -128,7 +128,7 @@ public class FixedModeChat {
         sizeViewport(main, mainH);
         extendViewportBorders(viewportBottom);
         bgGraphic.syncBorder(chatArea, true);
-        bgGraphic.zoomBakedSprite(STOCK_W, backgroundH);
+        bgGraphic.syncBackground(STOCK_W, backgroundH);
         pmSplit.setPmBoxHeight(pmH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable
         return new Dimension(STOCK_W, targetH);
@@ -164,7 +164,7 @@ public class FixedModeChat {
         extendViewportBorders(STOCK_Y); // Reset side borders to stock
         pmSplit.setPmBoxHeight(STOCK_Y - MAIN_TOP);
         dialogBoxes.resetDialogPositions();
-        bgGraphic.revertBakedSprite();
+        bgGraphic.revertBackground();
         bgGraphic.destroyBorder();
     }
 
@@ -254,5 +254,10 @@ public class FixedModeChat {
         if (tile) border.setSpriteTiling(true); // Repeat the texture instead of stretching its detail
         border.setOriginalHeight(h);
         border.revalidate();
+    }
+
+    private Widget getChatArea(Widget universe) {
+        Widget[] children = universe.getStaticChildren();
+        return children == null || children.length < 2 ? null : children[1];
     }
 }

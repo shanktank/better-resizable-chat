@@ -29,6 +29,7 @@ public class ResizableModeChat {
     private int lastOpenTab; // Tab open before the chat was hidden, reopened on unhide
     private boolean lastCollapsed; // Collapse state the last apply() sized the slot to
     private boolean relayoutNeeded; // Collapse changed the band above the chat
+    private boolean enablePending; // onEnable ran before the layout swap handed the chatbox over
 
     @Inject
     ResizableModeChat(
@@ -48,11 +49,21 @@ public class ResizableModeChat {
         this.movedChat = movedChat;
     }
 
-    // Adopt the chat size, then re-fit the UI and re-wrap lines when first enabling in resizable layout
+    // Adopt the chat size, then re-fit and re-wrap; rebuilding mid-swap would blacken a transparent chat
     void onEnable() {
-        apply(swapSize.effectiveHeightChange() == 0 && swapSize.effectiveWidthChange() == 0);
-        ChatRebuild.now(client, RawScripts.RESIZES_CHAT); // Re-fits an already-open dialog group too, not just the text
-        mainModals.relayout();
+        if (apply(swapSize.effectiveHeightChange() == 0 && swapSize.effectiveWidthChange() == 0) == null) {
+            enablePending = true; // Mid-swap; retry on a later frame, once the slot is ours
+        } else {
+            ChatRebuild.now(client, RawScripts.RESIZES_CHAT); // Re-fits an already-open dialog group too, not just the text
+            mainModals.relayout();
+        }
+    }
+
+    // True once when an onEnable bailed mid-swap and still owes its rebuild
+    boolean consumeEnablePending() {
+        boolean pending = enablePending;
+        enablePending = false;
+        return pending;
     }
 
     // Apply resizes in resizable layout; returns the applied slot size, or null if widgets missing/mid-swap
@@ -61,7 +72,7 @@ public class ResizableModeChat {
         if (universe == null) return null;
         Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
         if (chatArea == null) return null;
-        Widget slot = universe.getParent();
+        Widget slot = universe.getParent(); // Should be InterfaceID.ToplevelPreEoc.CHAT_CONTAINER
         if (slot == null || slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Not loaded or mid-swap
 
         boolean dialogOpen = dialogBoxes.isDialogOpen();
@@ -91,7 +102,7 @@ public class ResizableModeChat {
             bgGraphic.tabBarMatches(widthChange)
         ) { // Short-circuit but still make some assurances
             bgGraphic.resizeTabBar(widthChange);
-            bgGraphic.zoomBakedSprite(slotW, backgroundH);
+            bgGraphic.syncBackground(slotW, backgroundH);
             if (dialogOpen) dialogBoxes.centerDialogs();
             bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             pmSplit.resizePmBox(slotW);
@@ -113,7 +124,7 @@ public class ResizableModeChat {
         bgGraphic.resizeTabBar(widthChange); // Must resize before cascading revalidate
         Widgets.revalidateChildren(universe);
         bgGraphic.syncBorder(chatArea, true);
-        bgGraphic.zoomBakedSprite(slotW, backgroundH);
+        bgGraphic.syncBackground(slotW, backgroundH);
         if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand
         pmSplit.resizePmBox(slotW);
         sizeHpBarBand(slotH);
@@ -125,6 +136,7 @@ public class ResizableModeChat {
     void restore() {
         lastCollapsed = false;
         relayoutNeeded = false;
+        enablePending = false;
 
         movedChat.restore(); // Before the slot goes back to stock height, which is what the point is handed back for
 
@@ -148,15 +160,20 @@ public class ResizableModeChat {
 
         bgGraphic.resizeTabBar(0);
         bgGraphic.destroyBorder();
-        bgGraphic.revertBakedSprite();
         pmSplit.restorePmBox();
         Widgets.revalidateChildren(universe);
+        bgGraphic.revertBackground(); // After the cascade, so the container resolves against a settled chat area
         dialogBoxes.resetDialogPositions();
         hudAnchors.restore();
 
         // Only the literal height was overridden, so a plain revalidate recomputes the stock MINUS reserve
         Widget dodger = client.getWidget(InterfaceID.HpbarHud.HPDODGER);
         if (dodger != null) dodger.revalidate();
+    }
+
+    // The chat rebuild re-cuts a transparent chat's gradient off the height it reads going in, so re-assert after it
+    void restoreBackground() {
+        bgGraphic.revertBackground();
     }
 
     // Hide/unhide via the native tab collapse. Clicking the active tab is what collapses, so hide by clicking whichever

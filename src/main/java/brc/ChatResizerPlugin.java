@@ -112,6 +112,7 @@ public class ChatResizerPlugin extends Plugin {
             if (client.isResized()) {
                 resizable.restore();
                 ChatRebuild.now(client, RawScripts.RESIZES_CHAT); // Clean up sprite + re-wrap at stock width
+                resizable.restoreBackground();
                 mainModals.relayout();
             } else {
                 fixedChat.restore();
@@ -389,6 +390,8 @@ public class ChatResizerPlugin extends Plugin {
             }
             wasDragging = dragging;
 
+            // Resizable layout: an enable that landed mid layout swap owes its rebuild; retries until the slot is ours
+            if (client.isResized() && resizable.consumeEnablePending()) resizable.onEnable();
             // Fixed layout: mirror resizable's collapsed CHAT_VIEW sentinel so incoming messages blink their tab
             if (!client.isResized() && client.getGameState() == GameState.LOGGED_IN) fixedChat.syncCollapsedTab();
             // Fixed layout: the viewport band changed under an open modal
