@@ -32,6 +32,9 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.HotkeyListener;
 import com.google.inject.Provides;
 import java.awt.Dimension;
+import java.awt.Rectangle;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.inject.Inject;
 
 @PluginDescriptor(
@@ -287,15 +290,13 @@ public class ChatResizerPlugin extends Plugin {
         private boolean transitionPending; // Fixed pre-apply ran; finish its relayout + realign at cycle end
         private boolean refitPending; // Canvas resized; re-fit the mounted modal windows once the cascade settles
 
+        // Edited config keys, latched off-thread and adopted next frame; a queued hop moves the chat before its band
+        private final Queue<String> configEdits = new ConcurrentLinkedQueue<>();
+
         @Subscribe
         private void onConfigChanged(ConfigChanged event) {
             if (!ChatResizerConfig.GROUP.equals(event.getGroup()) || dragResizeActuator.isDragging()) return;
-            String key = event.getKey();
-            clientThread.invoke(() -> {
-                // Deactivating flips both axes, so it forces the full relayout; same-pass rule as setSwapActive
-                boolean deactivated = (swapUnusableAfter(key) || primarySizeEdited(key)) && swapSize.setActive(false);
-                reapplySizes(deactivated || widthChanged(key), deactivated || heightChanged(key));
-            });
+            configEdits.add(event.getKey());
         }
 
         // The engine's own relayout leaves mounted modal roots measuring the mid-cascade band; re-fit once it settles
@@ -315,22 +316,6 @@ public class ChatResizerPlugin extends Plugin {
                 resizable.restore(); // Leaving resizable
             }
             clientThread.invokeLater(ChatResizerPlugin.this::enable);
-        }
-
-        // Single per-cycle drain: the overlay-transition poll plus whatever the cycle's handlers latched. Fires
-        // after the tick-end drain, so the cycle's widget and varc state is final and the frame hasn't drawn yet.
-        @Subscribe
-        private void onPostClientTick(PostClientTick event) {
-            boolean preApplied = transitionPending;
-            transitionPending = false;
-            boolean transitioned = overlayTransitioned(); // Poll unconditionally; it advances both edge detectors
-            if (transitioned || preApplied) applyOverlayTransition();
-
-            // After the transition, so the windows measure the settled chat band rather than the old one
-            if (refitPending) {
-                refitPending = false;
-                mainModals.relayout();
-            }
         }
 
         @Subscribe
@@ -368,18 +353,34 @@ public class ChatResizerPlugin extends Plugin {
             if (id == ScriptID.MESSAGE_LAYER_OPEN) apply(false);
         }
 
+        // Single per-cycle drain: the overlay-transition poll plus whatever the cycle's handlers latched. Fires
+        // after the tick-end drain, so the cycle's widget and varc state is final and the frame hasn't drawn yet.
+        @Subscribe
+        private void onPostClientTick(PostClientTick event) {
+            boolean preApplied = transitionPending;
+            transitionPending = false;
+            boolean transitioned = overlayTransitioned(); // Poll unconditionally; it advances both edge detectors
+            if (transitioned || preApplied) applyOverlayTransition();
+
+            // After the transition, so the windows measure the settled chat band rather than the old one
+            if (refitPending) {
+                refitPending = false;
+                mainModals.relayout();
+            }
+        }
+
         @Subscribe
         private void onBeforeRender(BeforeRender event) {
             boolean dragging = dragResizeActuator.isDragging();
-            if (dragging && !wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
 
             if (dragging) {
-                Dimension size = apply(false);
-                Dimension last = dragResizeActuator.getLastDragSize();
+                if (!wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
+                Dimension size = apply(false), last = dragResizeActuator.getLastDragSize();
                 if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last))
                     client.runScript(RawScripts.RESIZES_CHAT); // Re-wrap text and move PM split
                 dragResizeActuator.setLastDragSize(size);
             } else {
+                adoptConfigEdits(); // Ahead of this frame's apply, or chat adopts the edit a frame before interfaces re-fit to it
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
                 if (wasDragging && client.isResized()) {
                     ChatRebuild.now(client, RawScripts.RESIZES_CHAT); // Single expensive re-wrap on drag-resize release
@@ -409,7 +410,8 @@ public class ChatResizerPlugin extends Plugin {
 
             // Publish the current chat rectangle, layout and window-derived size ceilings for resize band management
             Widget slot = Widgets.chatSlot(client);
-            dragResizeActuator.update(slot == null ? null : Widgets.liveBounds(slot), !client.isResized(), client.getCanvasWidth(), client.getCanvasHeight());
+            Rectangle bounds = slot == null ? null : Widgets.liveBounds(slot);
+            dragResizeActuator.update(bounds, !client.isResized(), client.getCanvasWidth(), client.getCanvasHeight());
 
             hudAnchors.presentAnchorHeight();
         }
@@ -440,6 +442,21 @@ public class ChatResizerPlugin extends Plugin {
                     }
                 }
             }
+        }
+
+        // Adopt every edit latched since the last frame in one pass
+        private void adoptConfigEdits() {
+            if (configEdits.isEmpty()) return;
+
+            boolean width = false, band = false, unusable = false;
+            for (String key = configEdits.poll(); key != null; key = configEdits.poll()) {
+                width = width || widthChanged(key);
+                band = band || heightChanged(key);
+                unusable = unusable || swapUnusableAfter(key) || primarySizeEdited(key);
+            }
+            boolean deactivated = unusable && swapSize.setActive(false); // Secondary size was deactivated
+
+            reapplySizes(deactivated || width, deactivated || band);
         }
     }
 

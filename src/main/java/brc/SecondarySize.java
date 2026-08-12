@@ -1,5 +1,6 @@
 package brc;
 
+import net.runelite.client.config.Keybind;
 import lombok.Getter;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -19,6 +20,7 @@ public class SecondarySize {
 
     // Returns whether the state changed, so the caller can refresh the chat exactly once per flip
     boolean setActive(boolean value) {
+        if (value && config.secondaryKeybind().equals(Keybind.NOT_SET)) return false; // Unlikely, but just in case
         if (active == value) return false;
         active = value;
         return true;
