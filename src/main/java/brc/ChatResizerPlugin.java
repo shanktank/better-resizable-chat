@@ -48,7 +48,6 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private Client client;
     @Inject private ClientThread clientThread;
     @Inject private ChatResizerConfig config;
-    @Inject private ConfigManager configManager;
     @Inject private KeyManager keyManager;
     @Inject private MouseManager mouseManager;
     @Inject private OverlayManager overlayManager;
@@ -77,7 +76,6 @@ public class ChatResizerPlugin extends Plugin {
 
     @Override
     protected void startUp() {
-        migrateDialogGates();
         keyManager.registerKeyListener(hideChatHotkey);
         keyManager.registerKeyListener(swapSizeHotkey);
         keyManager.registerKeyListener(dragResizeActuator.getKeyListener());
@@ -458,14 +456,5 @@ public class ChatResizerPlugin extends Plugin {
 
             reapplySizes(deactivated || width, deactivated || band);
         }
-    }
-
-    private void migrateDialogGates() {
-        String LEGACY_UNGROW_FOR_DIALOGS = "ungrowForDialogs";
-        Boolean ungrowForDialogs = configManager.getConfiguration(ChatResizerConfig.GROUP, LEGACY_UNGROW_FOR_DIALOGS, Boolean.class);
-        if (ungrowForDialogs == null) return;
-        ChatResizerConfig.Revert value = ungrowForDialogs ? ChatResizerConfig.Revert.BOTH : ChatResizerConfig.Revert.UNSHRINK;
-        configManager.setConfiguration(ChatResizerConfig.GROUP, ChatResizerConfig.REVERT_FOR_DIALOGS, value);
-        configManager.unsetConfiguration(ChatResizerConfig.GROUP, LEGACY_UNGROW_FOR_DIALOGS);
     }
 }
