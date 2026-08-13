@@ -40,7 +40,6 @@ public class TopLevelModals {
         Object[] captured;      // Last captured invocation (dims wiped), replayed by refit(); null until first seen
     }
 
-    // A fourth such overlay is a one-row addition
     private final RefitSpec[] refits = {
         // Bank: measures the toplevel mount slot directly, so it alone needs no post-realign ordering
         new RefitSpec(RawScripts.BANKMAIN_SIZE_CHECK_TIMER, 7, 3, 4, InterfaceID.Bankmain.UNIVERSE, -1),
@@ -48,6 +47,8 @@ public class TopLevelModals {
         new RefitSpec(RawScripts.SETTINGS_SIZE_CHECK_TIMER, 8, 6, 7, InterfaceID.Settings.UNIVERSE, -1),
         // Collection Log: own-root too, and on a shared movable-window poll, so filterArg keeps out other windows
         new RefitSpec(RawScripts.WINDOW_SIZE_CHECK_TIMER, 5, 1, 2, InterfaceID.Collection.UNIVERSE, 4),
+        // Seed Vault: measures the mounted root, then sizes its window absolutely, so nothing else can re-fit it
+        new RefitSpec(RawScripts.SEED_VAULT_SIZE_CHECK_TIMER, 10, 3, 4, InterfaceID.SeedVault.UNIVERSE, -1),
     };
 
     private final Client client;

@@ -25,6 +25,7 @@ public final class RawScripts {
     public static final int BANKMAIN_SIZE_CHECK_TIMER = 839; // cs2 bankmain_size_check
     public static final int SETTINGS_SIZE_CHECK_TIMER = 3831; // cs2 settings_window_resize
     public static final int WINDOW_SIZE_CHECK_TIMER = 2599; // Shared movable-window poll (Collection Log, others)
+    public static final int SEED_VAULT_SIZE_CHECK_TIMER = 742; // Ontimer wrapper of cs2 2852, armed at runtime by 2852 itself
 
     // cs2 chat_button_onop, the tab stones' click handler; (1, tabIdx) switches tab or collapses chat if already active
     public static final int CHAT_TAB_CLICKED = 175;
