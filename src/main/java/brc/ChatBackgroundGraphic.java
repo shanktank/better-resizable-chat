@@ -69,6 +69,7 @@ public class ChatBackgroundGraphic {
 
     private Widget[] borderPieces;
     private boolean trimmed;
+    private boolean zoomed;
 
     @Inject
     ChatBackgroundGraphic(Client client, ChatResizerConfig config) {
@@ -81,12 +82,18 @@ public class ChatBackgroundGraphic {
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         if (background == null) return;
         Widget body = getBackgroundBody(background);
-        if (isParchment(body)) {
-            zoomBakedSprite(background, body, targetW, targetH);
-        } else { // Nothing to clip, so the zoom comes off entirely
+        if (!isParchment(body)) { // Nothing to clip, so the zoom comes off entirely
             untrimBackground(background);
             stackGradientBands(background, targetH);
+            return;
         }
+
+        if (config.noBackgroundZoom()) unzoomBakedSprite(body);
+        else zoomBakedSprite(body, targetW, targetH);
+
+        // Only worth shaving the corners off a zoomed sprite whose border is redrawn over them
+        if (config.noBackgroundZoom() || config.noBorders()) untrimBackground(background);
+        else trimBackground(background);
     }
 
     void revertBackground() {
@@ -95,28 +102,37 @@ public class ChatBackgroundGraphic {
         untrimBackground(background);
         Widget body = getBackgroundBody(background);
         if (isParchment(body)) {
-            // Revert background sprite zoom
-            body.setSpriteTiling(true);
-            body.setForcedPosition(-1, -1);
-            body.revalidate();
+            unzoomBakedSprite(body);
         } else {
             stackGradientBands(background, ChatGeometry.CHATBOX_SPRITE_H);
         }
     }
 
     // Stretch the background sprite so the baked-in edges get clipped
-    private void zoomBakedSprite(Widget background, Widget body, int targetW, int targetH) {
+    private void zoomBakedSprite(Widget body, int targetW, int targetH) {
         // Must use setWidth/setHeight here
         Widgets.setWidth(body, targetW + BACKGROUND_STRETCH_X * 2);
         Widgets.setHeight(body, targetH + BACKGROUND_STRETCH_Y * 2);
         body.setForcedPosition(body.getOriginalX() - BACKGROUND_STRETCH_X, body.getOriginalY() - BACKGROUND_STRETCH_Y);
         body.setSpriteTiling(false);
+        zoomed = true;
+    }
 
-        // Trim the transparent corner pixels off the background parchment
+    // Trim the transparent corner pixels off the background parchment; re-asserted each pass, the engine resets the size
+    private void trimBackground(Widget background) {
         background.setSize(CORNER_BLEED_TRIM, CORNER_BLEED_TRIM);
         background.setForcedPosition(0, CORNER_BLEED_TRIM);
         background.revalidate();
         trimmed = true;
+    }
+
+    // Revert the sprite zoom; the revalidate resolves the literal size back off the widget's own layout fields
+    private void unzoomBakedSprite(Widget body) {
+        if (!zoomed) return;
+        zoomed = false;
+        body.setSpriteTiling(true);
+        body.setForcedPosition(-1, -1);
+        body.revalidate();
     }
 
     // Revert the corner bleed adjustment; the engine restores the size on its own rebuilds but never the position
@@ -218,6 +234,11 @@ public class ChatBackgroundGraphic {
 
     // Draw, refresh, or tear down chat border, keyed on how the engine has built the background this frame
     void syncBorder(Widget chatArea, boolean reposition) {
+        if (config.noBorders()) {
+            destroyBorder();
+            return;
+        }
+
         Widget background = client.getWidget(InterfaceID.Chatbox.CHAT_BACKGROUND);
         Widget body = background == null ? null : getBackgroundBody(background);
 
