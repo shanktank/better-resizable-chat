@@ -1,5 +1,6 @@
 package brc;
 
+import brc.internal.ChatGeometry;
 import brc.internal.SizeClamps;
 import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
@@ -136,10 +137,15 @@ public interface ChatResizerConfig extends Config {
         public boolean ungrows() { return this == UNGROW || this == BOTH; }
         public boolean unshrinks() { return this == UNSHRINK || this == BOTH; }
     }
+    enum ChatFont { NORMAL, SMALL }
+    enum ChatIcons { NORMAL, SCALED, CROPPED }
 
     String REVERT_FOR_DIALOGS = "revertForDialogs";
     String REVERT_FOR_MODALS = "revertForModals";
     String TOGGLE_SHOW_CHAT = "toggleShowChat";
+    String CHAT_FONT = "chatFont";
+    String CHAT_ICONS = "chatIcons";
+    String CHAT_LINE_SPACING = "chatLineSpacing";
 
     @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
     String bothLayoutsSection = "bothLayouts";
@@ -182,6 +188,47 @@ public interface ChatResizerConfig extends Config {
     )
     default Keybind toggleShowChat() {
         return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+        position = 204,
+        keyName = CHAT_FONT,
+        name = "Chat text size",
+        description = "Font the chat messages are drawn in."
+                    + "<br>&nbsp;&nbsp; - Normal: the game's stock font (Plain 12)"
+                    + "<br>&nbsp;&nbsp; - Small: the game's smaller font (Plain 11)",
+        section = bothLayoutsSection
+    )
+    default ChatFont chatFont() {
+        return ChatFont.NORMAL;
+    }
+
+    @Range(min = 10, max = ChatGeometry.LINE_PITCH)
+    @Units(Units.PIXELS)
+    @ConfigItem(
+        position = 205,
+        keyName = CHAT_LINE_SPACING,
+        name = "Line spacing",
+        description = "Vertical space each line of chat text takes up.",
+        section = bothLayoutsSection
+    )
+    default int chatLineSpacing() {
+        return ChatGeometry.LINE_PITCH;
+    }
+
+    @ConfigItem(
+        position = 206,
+        keyName = CHAT_ICONS,
+        name = "Ironman icons",
+        description = "Helmie icons as they appear in chat."
+                    + "<br>&nbsp;&nbsp; - Normal: the game's own icons"
+                    + "<br>&nbsp;&nbsp; - Scaled: downscale the stock icons"
+                    + "<br>&nbsp;&nbsp; - Cropped: shave the first two rows of pixels off the stock icons"
+                    + "<br>Clan rank icons are not covered by this; they follow the chat text size.",
+        section = bothLayoutsSection
+    )
+    default ChatIcons chatIcons() {
+        return ChatIcons.NORMAL;
     }
 
     // Drag-resize settings

@@ -60,6 +60,7 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private FixedModeChat fixedChat;
     @Inject private ResizableModeChat resizable;
     @Inject private ChatScrollRetainer scrollKeep;
+    @Inject private ChatTextStyle textStyle;
     @Inject private RuneLiteChatInput rlInput;
     @Inject private SecondarySize swapSize;
     @Inject private DragResizeActuator dragResizeActuator;
@@ -89,6 +90,7 @@ public class ChatResizerPlugin extends Plugin {
             // Injected singletons persist across disable -> enable; re-prime cached state before the enable path
             transitions.reset();
             scrollKeep.reset();
+            textStyle.reset();
             swapSize.reset();
             enable();
         });
@@ -109,6 +111,7 @@ public class ChatResizerPlugin extends Plugin {
 
         clientThread.invoke(() -> {
             unregisterHandlers(); // Once more: a layout-swap enable() queued before shutdown would have re-armed
+            textStyle.restore(); // Ahead of the rebuilds below, so they re-wrap against stock line heights
             scrollKeep.sync();
             if (client.isResized()) {
                 resizable.restore();
@@ -207,6 +210,7 @@ public class ChatResizerPlugin extends Plugin {
         } else if (fixedChat.consumeRebuildNeeded()) {
             ChatRebuild.now(client, RawScripts.REWRAPS_CHAT); // Re-anchor lines this frame to avoid drawing stale anchors
         }
+        textStyle.reapply(); // After the rebuild, whose rows come back at the game's own font and pitch
         scrollKeep.sync();
     }
 
@@ -404,6 +408,7 @@ public class ChatResizerPlugin extends Plugin {
             }
 
             rlInput.refit(); // Re-center an open RuneLite input prompt if this frame moved the width out from under it
+            textStyle.sync(); // Before the scroll pin: re-stacking the rows moves the content height it reads
             scrollKeep.sync(); // Single preservation here
 
             // Publish the current chat rectangle, layout and window-derived size ceilings for resize band management

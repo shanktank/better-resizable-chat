@@ -66,8 +66,9 @@ public class ChatDialogBoxes {
             Widget dialog = client.getWidget(id);
             Widget parent = dialog == null ? null : dialog.getParent();
             if (parent == null) continue;
-            place(dialog, Math.max(0, (parent.getWidth() - dialog.getWidth()) / 2),
-                          Math.max(0, (parent.getHeight() - dialog.getHeight()) / 2));
+            int x = Math.max(0, (parent.getWidth() - dialog.getWidth()) / 2);
+            int y = Math.max(0, (parent.getHeight() - dialog.getHeight()) / 2);
+            place(dialog, x, y);
         }
     }
 
