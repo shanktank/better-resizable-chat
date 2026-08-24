@@ -88,12 +88,18 @@ public class ChatBackgroundGraphic {
             return;
         }
 
-        if (config.noBackgroundZoom()) unzoomBakedSprite(body);
-        else zoomBakedSprite(body, targetW, targetH);
+        if (config.noBackgroundZoom()) {
+            unzoomBakedSprite(body);
+        } else {
+            zoomBakedSprite(body, targetW, targetH);
+        }
 
         // Only worth shaving the corners off a zoomed sprite whose border is redrawn over them
-        if (config.noBackgroundZoom() || config.noBorders()) untrimBackground(background);
-        else trimBackground(background);
+        if (config.noBackgroundZoom() || config.noBorders()) {
+            untrimBackground(background);
+        } else {
+            trimBackground(background);
+        }
     }
 
     void revertBackground() {

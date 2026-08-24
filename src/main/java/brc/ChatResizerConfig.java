@@ -297,7 +297,7 @@ public interface ChatResizerConfig extends Config {
     String NO_BORDERS = "noBorders";
     String NO_BACKGROUND_ZOOM = "noBackgroundZoom";
 
-    @ConfigSection(name = "Compatibility", description = "Settings for compatibility with other plugins.", position = 500, closedByDefault = true)
+    @ConfigSection(name = "Compatibility", description = "Play well with other plugins.", position = 500, closedByDefault = true)
     String compatibilitySection = "compatibility";
 
     @ConfigItem(

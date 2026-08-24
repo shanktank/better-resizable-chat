@@ -445,7 +445,6 @@ public class ChatResizerPlugin extends Plugin {
         // Adopt every edit latched since the last frame in one pass
         private void adoptConfigEdits() {
             if (configEdits.isEmpty()) return;
-
             boolean width = false, band = false, unusable = false;
             for (String key = configEdits.poll(); key != null; key = configEdits.poll()) {
                 width = width || widthChanged(key);
@@ -453,7 +452,6 @@ public class ChatResizerPlugin extends Plugin {
                 unusable = unusable || swapUnusableAfter(key) || primarySizeEdited(key);
             }
             boolean deactivated = unusable && swapSize.setActive(false); // Secondary size was deactivated
-
             reapplySizes(deactivated || width, deactivated || band);
         }
     }
