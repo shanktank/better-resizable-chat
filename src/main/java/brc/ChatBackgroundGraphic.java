@@ -59,9 +59,8 @@ public class ChatBackgroundGraphic {
     private static final int ALIGN_SHIFT = 1;
     private static final int MINIMUM_GAP = 10;
 
-    // Chat background stretching and trimming
-    private static final int BACKGROUND_STRETCH_X = 40;
-    private static final int BACKGROUND_STRETCH_Y = 75;
+    // Chat background trimming and border cropping
+    private static final int BAKED_BORDER = 8;
     private static final int CORNER_BLEED_TRIM = 1;
 
     private final Client client;
@@ -114,14 +113,22 @@ public class ChatBackgroundGraphic {
         }
     }
 
-    // Stretch the background sprite so the baked-in edges get clipped
+    // Overscan the sprite so exactly the baked bevel spills past the box edges and clips
     private void zoomBakedSprite(Widget body, int targetW, int targetH) {
-        // Must use setWidth/setHeight here
-        Widgets.setWidth(body, targetW + BACKGROUND_STRETCH_X * 2);
-        Widgets.setHeight(body, targetH + BACKGROUND_STRETCH_Y * 2);
-        body.setForcedPosition(body.getOriginalX() - BACKGROUND_STRETCH_X, body.getOriginalY() - BACKGROUND_STRETCH_Y);
+        int ohX = bevelOverscan(targetW, ChatGeometry.CHATBOX_SPRITE_W);
+        int ohY = bevelOverscan(targetH, ChatGeometry.CHATBOX_SPRITE_H);
+        Widgets.setWidth(body, targetW + ohX * 2);
+        Widgets.setHeight(body, targetH + ohY * 2);
+        body.setForcedPosition(body.getOriginalX() - ohX, body.getOriginalY() - ohY);
         body.setSpriteTiling(false);
         zoomed = true;
+    }
+
+    // Screen overscan per side that clips exactly BAKED_BORDER source px once the sprite stretches to target
+    private static int bevelOverscan(int target, int nativeSize) {
+        int denom = nativeSize - 2 * BAKED_BORDER;
+        if (denom <= 0) return BAKED_BORDER;
+        return (BAKED_BORDER * target + denom - 1) / denom;
     }
 
     // Trim the transparent corner pixels off the background parchment; re-asserted each pass, the engine resets the size
