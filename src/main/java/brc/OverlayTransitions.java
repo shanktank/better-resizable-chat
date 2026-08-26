@@ -6,24 +6,24 @@ import javax.inject.Singleton;
 // Overlay edge detectors for chat dialog and toplevel modal, all consumers poll through here to ensure simultaneity
 @Singleton
 public class OverlayTransitions {
-    private final ChatDialogBoxes dialogBoxes;
+    private final ChatDialogModals dialogModals;
     private final TopLevelModals mainModals;
 
     @Inject
-    OverlayTransitions(ChatDialogBoxes dialogBoxes, TopLevelModals mainModals) {
-        this.dialogBoxes = dialogBoxes;
+    OverlayTransitions(ChatDialogModals dialogModals, TopLevelModals mainModals) {
+        this.dialogModals = dialogModals;
         this.mainModals = mainModals;
     }
 
     // Re-prime both caches on enable; the singletons survive disable -> enable
     void reset() {
-        dialogBoxes.reset();
+        dialogModals.reset();
         mainModals.reset();
     }
 
     // Cycle-end route (PostClientTick): advance and report both edges in one call, so neither can defer the other
     Edges poll() {
-        boolean dialogChanged = dialogBoxes.dialogOpenStateChanged();
+        boolean dialogChanged = dialogModals.dialogOpenStateChanged();
         boolean modalChanged = mainModals.topLevelModalOpenStateChanged();
         return new Edges(dialogChanged, modalChanged);
     }

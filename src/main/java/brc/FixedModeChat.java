@@ -42,9 +42,9 @@ public class FixedModeChat {
     private final Client client;
     private final ChatResizerConfig config;
     private final SecondarySize swapSize;
-    private final ChatBackgroundGraphic bgGraphic;
+    private final ChatBackgroundSprite bgGraphic;
     private final PrivateMessageSplit pmSplit;
-    private final ChatDialogBoxes dialogBoxes;
+    private final ChatDialogModals dialogModals;
     private final TopLevelModals mainModals;
 
     private int lastTargetY = STOCK_Y;
@@ -56,16 +56,16 @@ public class FixedModeChat {
 
     @Inject
     FixedModeChat(
-        Client client, ChatResizerConfig config, SecondarySize swapSize,
-        ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit,
-        ChatDialogBoxes dialogBoxes, TopLevelModals mainModals
+            Client client, ChatResizerConfig config, SecondarySize swapSize,
+            ChatBackgroundSprite bgGraphic, PrivateMessageSplit pmSplit,
+            ChatDialogModals dialogModals, TopLevelModals mainModals
     ) {
         this.client = client;
         this.config = config;
         this.swapSize = swapSize;
         this.bgGraphic = bgGraphic;
         this.pmSplit = pmSplit;
-        this.dialogBoxes = dialogBoxes;
+        this.dialogModals = dialogModals;
         this.mainModals = mainModals;
     }
 
@@ -84,7 +84,7 @@ public class FixedModeChat {
         if (chatArea == null || chatArea.getId() != InterfaceID.Chatbox.CHATAREA) return null;
 
         boolean modalOpen = mainModals.isModalOpen();
-        boolean dialogOpen = dialogBoxes.isDialogOpen();
+        boolean dialogOpen = dialogModals.isDialogOpen();
         int rawHeightChange = effectiveHeightChange(dialogOpen);
         int heightChange = SizeClamps.clamp(rawHeightChange, true, modalOpen, dialogOpen, config);
         // Viewport keeps its pre-dialog size to avoid a camera jerk, so this is the height with no dialog
@@ -120,7 +120,7 @@ public class FixedModeChat {
             bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             extendViewportBorders(viewportBottom); // Re-assert side borders (engine resets them on rebuilds)
             pmSplit.setPmBoxHeight(pmH); // Re-assert split-PM position (engine resets it on rebuilds)
-            if (dialogOpen) dialogBoxes.centerDialogs();
+            if (dialogOpen) dialogModals.centerDialogs();
             return new Dimension(STOCK_W, targetH);
         }
 
@@ -130,7 +130,7 @@ public class FixedModeChat {
         bgGraphic.syncBorder(chatArea, true);
         bgGraphic.syncBackground(STOCK_W, backgroundH);
         pmSplit.setPmBoxHeight(pmH);
-        if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable
+        if (dialogOpen) dialogModals.centerDialogs(); // Mounted dialog groups need placing by hand, as in resizable
         return new Dimension(STOCK_W, targetH);
     }
 
@@ -163,7 +163,7 @@ public class FixedModeChat {
         sizeViewport(client.getWidget(InterfaceID.Toplevel.MAIN), STOCK_MAIN_H);
         extendViewportBorders(STOCK_Y); // Reset side borders to stock
         pmSplit.setPmBoxHeight(STOCK_Y - MAIN_TOP);
-        dialogBoxes.resetDialogPositions();
+        dialogModals.resetDialogPositions();
         bgGraphic.revertBackground();
         bgGraphic.destroyBorder();
     }
@@ -191,7 +191,7 @@ public class FixedModeChat {
     @Subscribe
     public void onMenuOptionClicked(MenuOptionClicked event) {
         if (client.isResized() || !config.fixedTabCollapse() || !event.getMenuOption().equals(SWITCH_TAB)) return;
-        int tab = ChatBackgroundGraphic.tabIndexOf(event.getParam1()); // Param1 is the clicked widget's component ID
+        int tab = ChatBackgroundSprite.tabIndexOf(event.getParam1()); // Param1 is the clicked widget's component ID
         if (tab != -1) setCollapsed(!isCollapsed() && tab == client.getVarcIntValue(VarClientID.CHAT_VIEW));
     }
 

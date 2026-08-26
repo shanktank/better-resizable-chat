@@ -16,7 +16,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
-public class ChatDialogBoxes {
+public class ChatDialogModals {
     @Interface private static final int CHATBOX_GROUP = WidgetUtil.componentToInterface(InterfaceID.Chatbox.UNIVERSE);
     @Component private static final int[] DIALOGS_TO_CENTER = {
         InterfaceID.MembershipBenefitsPrompt.UNIVERSE,
@@ -28,7 +28,7 @@ public class ChatDialogBoxes {
     private boolean dialogOpen;
 
     @Inject
-    ChatDialogBoxes(Client client) {
+    ChatDialogModals(Client client) {
         this.client = client;
     }
 

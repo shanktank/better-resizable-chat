@@ -13,7 +13,7 @@ import javax.inject.Singleton;
 @Singleton
 public final class ChatScrollRetainer {
     private final Client client;
-    private final ChatDialogBoxes dialogBoxes;
+    private final ChatDialogModals dialogModals;
     private final DragResizeActuator dragResize;
 
     private Integer lastViewport; // Null until the chat scroll area is first seen
@@ -29,9 +29,9 @@ public final class ChatScrollRetainer {
     private int anchorContentH; // so the per-row scan stays off the resting-frame fast path
 
     @Inject
-    ChatScrollRetainer(Client client, ChatDialogBoxes dialogBoxes, DragResizeActuator dragResize) {
+    ChatScrollRetainer(Client client, ChatDialogModals dialogModals, DragResizeActuator dragResize) {
         this.client = client;
-        this.dialogBoxes = dialogBoxes;
+        this.dialogModals = dialogModals;
         this.dragResize = dragResize;
     }
 
@@ -69,7 +69,7 @@ public final class ChatScrollRetainer {
             client.runScript(ScriptID.UPDATE_SCROLLBAR, InterfaceID.Chatbox.CHATSCROLLBAR, InterfaceID.Chatbox.SCROLLAREA, anchored);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLPOS, anchored);
             client.setVarcIntValue(VarClientID.CHAT_LASTSCROLLSIZE, contentH);
-        } else if (!dialogBoxes.isDialogOpen() && !dragResize.isDragging()) {
+        } else if (!dialogModals.isDialogOpen() && !dragResize.isDragging()) {
             // Remember where the viewer sits; skipped under a dialog (it hijacks the message layer) and
             // for the whole of a drag, whose intermediate frames are not the viewer settling somewhere new
             distFromBottom = contentH - scrollY - viewport;

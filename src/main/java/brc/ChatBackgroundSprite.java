@@ -16,7 +16,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
-public class ChatBackgroundGraphic {
+public class ChatBackgroundSprite {
     // Manually-cobbled chat box border
     private static final int CORNER_SIZE = 32;
     private static final int BORDER_OFFSET = 12;
@@ -71,7 +71,7 @@ public class ChatBackgroundGraphic {
     private boolean zoomed;
 
     @Inject
-    ChatBackgroundGraphic(Client client, ChatResizerConfig config) {
+    ChatBackgroundSprite(Client client, ChatResizerConfig config) {
         this.client = client;
         this.config = config;
     }

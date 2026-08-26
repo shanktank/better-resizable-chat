@@ -19,9 +19,9 @@ public class ResizableModeChat {
     private final Client client;
     private final ChatResizerConfig config;
     private final SecondarySize swapSize;
-    private final ChatBackgroundGraphic bgGraphic;
+    private final ChatBackgroundSprite bgGraphic;
     private final PrivateMessageSplit pmSplit;
-    private final ChatDialogBoxes dialogBoxes;
+    private final ChatDialogModals dialogModals;
     private final TopLevelModals mainModals;
     private final RuneLiteHudAnchors hudAnchors;
     private final RuneLiteMovedChat movedChat;
@@ -33,17 +33,17 @@ public class ResizableModeChat {
 
     @Inject
     ResizableModeChat(
-        Client client, ChatResizerConfig config, SecondarySize swapSize,
-        ChatBackgroundGraphic bgGraphic, PrivateMessageSplit pmSplit,
-        ChatDialogBoxes dialogBoxes, TopLevelModals mainModals,
-        RuneLiteHudAnchors hudAnchors, RuneLiteMovedChat movedChat
+            Client client, ChatResizerConfig config, SecondarySize swapSize,
+            ChatBackgroundSprite bgGraphic, PrivateMessageSplit pmSplit,
+            ChatDialogModals dialogModals, TopLevelModals mainModals,
+            RuneLiteHudAnchors hudAnchors, RuneLiteMovedChat movedChat
     ) {
         this.client = client;
         this.config = config;
         this.swapSize = swapSize;
         this.bgGraphic = bgGraphic;
         this.pmSplit = pmSplit;
-        this.dialogBoxes = dialogBoxes;
+        this.dialogModals = dialogModals;
         this.mainModals = mainModals;
         this.hudAnchors = hudAnchors;
         this.movedChat = movedChat;
@@ -75,7 +75,7 @@ public class ResizableModeChat {
         Widget slot = universe.getParent(); // Should be InterfaceID.ToplevelPreEoc.CHAT_CONTAINER
         if (slot == null || slot.getId() == InterfaceID.Toplevel.CHAT_CONTAINER) return null; // Not loaded or mid-swap
 
-        boolean dialogOpen = dialogBoxes.isDialogOpen();
+        boolean dialogOpen = dialogModals.isDialogOpen();
         int widthChange = SizeClamps.clamp(swapSize.effectiveWidthChange(), false, false, dialogOpen, config);
         int heightChange = SizeClamps.clamp(effectiveHeightChange(dialogOpen), false, mainModals.isModalOpen(), dialogOpen, config);
 
@@ -103,7 +103,7 @@ public class ResizableModeChat {
         ) { // Short-circuit but still make some assurances
             bgGraphic.resizeTabBar(widthChange);
             bgGraphic.syncBackground(slotW, backgroundH);
-            if (dialogOpen) dialogBoxes.centerDialogs();
+            if (dialogOpen) dialogModals.centerDialogs();
             bgGraphic.syncBorder(chatArea, false); // Recreate if dropped, else re-sync visibility
             pmSplit.resizePmBox(slotW);
             sizeHpBarBand(slotH);
@@ -125,7 +125,7 @@ public class ResizableModeChat {
         Widgets.revalidateChildren(universe);
         bgGraphic.syncBorder(chatArea, true);
         bgGraphic.syncBackground(slotW, backgroundH);
-        if (dialogOpen) dialogBoxes.centerDialogs(); // Mounted dialog groups need placing by hand
+        if (dialogOpen) dialogModals.centerDialogs(); // Mounted dialog groups need placing by hand
         pmSplit.resizePmBox(slotW);
         sizeHpBarBand(slotH);
 
@@ -163,7 +163,7 @@ public class ResizableModeChat {
         pmSplit.restorePmBox();
         Widgets.revalidateChildren(universe);
         bgGraphic.revertBackground(); // After the cascade, so the container resolves against a settled chat area
-        dialogBoxes.resetDialogPositions();
+        dialogModals.resetDialogPositions();
         hudAnchors.restore();
 
         // Only the literal height was overridden, so a plain revalidate recomputes the stock MINUS reserve
