@@ -19,6 +19,8 @@ import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.eventbus.EventBus;
@@ -30,10 +32,17 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.HotkeyListener;
+import org.apache.commons.lang3.RandomStringUtils;
 import com.google.inject.Provides;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.inject.Inject;
 
@@ -60,6 +69,7 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private FixedModeChat fixedChat;
     @Inject private ResizableModeChat resizable;
     @Inject private ChatScrollRetainer scrollKeep;
+    @Inject private ChatTextStyle textStyle;
     @Inject private RuneLiteChatInput rlInput;
     @Inject private SecondarySize swapSize;
     @Inject private DragResizeActuator dragResizeActuator;
@@ -89,6 +99,7 @@ public class ChatResizerPlugin extends Plugin {
             // Injected singletons persist across disable -> enable; re-prime cached state before the enable path
             transitions.reset();
             scrollKeep.reset();
+            textStyle.reset();
             swapSize.reset();
             enable();
         });
@@ -109,6 +120,7 @@ public class ChatResizerPlugin extends Plugin {
 
         clientThread.invoke(() -> {
             unregisterHandlers(); // Once more: a layout-swap enable() queued before shutdown would have re-armed
+            textStyle.restore(); // Ahead of the rebuilds below, so they re-wrap against stock line heights
             scrollKeep.sync();
             if (client.isResized()) {
                 resizable.restore();
@@ -207,6 +219,7 @@ public class ChatResizerPlugin extends Plugin {
         } else if (fixedChat.consumeRebuildNeeded()) {
             ChatRebuild.now(client, RawScripts.REWRAPS_CHAT); // Re-anchor lines this frame to avoid drawing stale anchors
         }
+        textStyle.reapply(); // After the rebuild, whose rows come back at the game's own font and pitch
         scrollKeep.sync();
     }
 
@@ -374,13 +387,17 @@ public class ChatResizerPlugin extends Plugin {
             if (dragging) {
                 if (!wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
                 Dimension size = apply(false), last = dragResizeActuator.getLastDragSize();
-                if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last)) client.refreshChat();
+                if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last)) // TODO
+                    //client.runScript(RawScripts.RESIZES_CHAT); // Leaner per-frame wrap + PM split
+                    //client.runScript(RawScripts.REWRAPS_CHAT); // Leaner per-frame wrap + PM split; skips 924's frame/tab reset
+                    client.refreshChat();
                 dragResizeActuator.setLastDragSize(size);
             } else {
                 adoptConfigEdits(); // Ahead of this frame's apply, or chat adopts the edit a frame before interfaces re-fit to it
                 apply(false); // Drift-correct: re-stretch the tab bar/border after a rebuild (e.g. world hop) reverts it
-                if (wasDragging && client.isResized()) {
+                if (wasDragging && client.isResized()) { // TODO
                     ChatRebuild.now(client, RawScripts.RESIZES_CHAT); // Single expensive re-wrap on drag-resize release
+                    //ChatRebuild.now(client, RawScripts.REWRAPS_CHAT);
                     mainModals.relayout(); // Re-fit bank/overlays to the new chat size on release
                     scrollKeep.noteRewrap(); // Re-anchor scroll if that re-wrap was the drag's deferred width change
                 }
@@ -403,6 +420,7 @@ public class ChatResizerPlugin extends Plugin {
             }
 
             rlInput.refit(); // Re-center an open RuneLite input prompt if this frame moved the width out from under it
+            textStyle.sync(); // Before the scroll pin: re-stacking the rows moves the content height it reads
             scrollKeep.sync(); // Single preservation here
 
             // Publish the current chat rectangle, layout and window-derived size ceilings for resize band management
@@ -413,31 +431,77 @@ public class ChatResizerPlugin extends Plugin {
             hudAnchors.presentAnchorHeight();
         }
 
+        Map<ChatMessageType, LinkedList<MessageNode>> testMessages = new HashMap<>(Map.of(
+            ChatMessageType.MODCHAT, new LinkedList<>(),
+            ChatMessageType.MODPRIVATECHAT, new LinkedList<>(),
+            ChatMessageType.CLAN_CHAT, new LinkedList<>()
+        ));
         @Subscribe
         private void onCommandExecuted(CommandExecuted event) {
-            if (event.getCommand().equals("testpm")) {
+            String command = event.getCommand();
+            if (command.equals("testpm")) {
                 String message = "ABCDEFGHIJKLMNO PQRSTUVWXYZ ABCDEFG HIJKLMNOP QRSTU VWX YZ AB CD EF G H I J K L M N O P Q R S T U V W X Y Z";
                 if (event.getArguments().length != 0) message = String.join(" ", event.getArguments());
-                client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null);
-                //client.addChatMessage(ChatMessageType.PUBLICCHAT, "Test", message, null);
-            } else if (event.getCommand().equals("clearpm")) {
-                ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.MODPRIVATECHAT.getType());
-                for (MessageNode node : buffer.getLines().clone()) buffer.removeMessageNode(node);
-                // Dev-only one-shot with no layout state, so it can stay on invokeAtTickEnd rather than a latch
-                clientThread.invokeAtTickEnd(() -> ChatRebuild.now(client, ScriptID.SPLITPM_CHANGED));
-            } else if (event.getCommand().equals("lorem")) {
+                testMessages.get(ChatMessageType.MODPRIVATECHAT).add(client.addChatMessage(ChatMessageType.MODPRIVATECHAT, "Test", message, null));
+            } else if (command.equals("testmsg")) {
+                int[] lengths = {5, 20, 55, 80, 35, 40, 15, 60, 85, 25, 50, 75, 10, 95, 70, 65, 30};
+                for (int l : lengths) {
+                    testMessages.get(ChatMessageType.MODCHAT).add(
+                        client.addChatMessage(ChatMessageType.MODCHAT, "Test", "j".repeat(20) + " " + "f".repeat(l), null)
+                    );
+                }
+            } else if (command.equals("lorem")) {
+                Random rand = new Random();
                 String lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et "
                     + "dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo "
                     + "consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. "
                     + "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-                java.util.Random rand = new java.util.Random();
                 for (int n = 0; n < (event.getArguments().length != 0 ? Integer.parseInt(event.getArguments()[0]) : 1); n++) {
                     for (int i = 0, j = 0; i < lorem.length(); i = j) {
-                        String name = org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric(rand.nextInt(6) + 4);
                         j = Math.min(j + rand.nextInt(90) + 40, lorem.length());
-                        client.addChatMessage(ChatMessageType.MODCHAT, name, lorem.substring(i, j).trim(), null);
+                        testMessages.get(ChatMessageType.CLAN_CHAT).add(client.addChatMessage(
+                            ChatMessageType.CLAN_CHAT,
+                            new ChatMessageBuilder().img(2).append(RandomStringUtils.randomAlphanumeric(rand.nextInt(6) + 4)).build(),
+                            new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append(Color.RED, lorem.substring(i, j).trim()).build(),
+                            "CC"
+                        ));
                     }
                 }
+            } else if (command.equals("testflood")) {
+                Random rand = new Random();
+                String lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et "
+                    + "dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo "
+                    + "consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. "
+                    + "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+                for (ChatMessageType type : Set.of(ChatMessageType.CLAN_CHAT, ChatMessageType.MODCHAT, ChatMessageType.MODPRIVATECHAT)) {
+                    for (int n = 0; n < (event.getArguments().length != 0 ? Integer.parseInt(event.getArguments()[0]) : 1); n++) {
+                        for (int i = 0, j = 0; i < lorem.length(); i = j) {
+                            j = Math.min(j + rand.nextInt(90) + 40, lorem.length());
+                            testMessages.get(type).add(client.addChatMessage(
+                                type,
+                                new ChatMessageBuilder().img(2).append(RandomStringUtils.randomAlphanumeric(rand.nextInt(6) + 4)).build(),
+                                new ChatMessageBuilder().append(ChatColorType.HIGHLIGHT).append(Color.RED, lorem.substring(i, j).trim()).build(),
+                                "CC"
+                            ));
+                        }
+                    }
+                }
+            } else if (command.equals("clearpm")) {
+                ChatLineBuffer buffer = client.getChatLineMap().get(ChatMessageType.MODPRIVATECHAT.getType());
+                for (MessageNode node : buffer.getLines().clone()) buffer.removeMessageNode(node);
+                clientThread.invokeAtTickEnd(() -> ChatRebuild.now(client, ScriptID.SPLITPM_CHANGED));
+            } else if (command.equals("clearall")) {
+                Map<Integer, ChatLineBuffer> m = client.getChatLineMap();
+                for (Integer key : m.keySet()) System.out.println("!!! key=" + ChatMessageType.of(key) + ", m.get(key).getLength()=" + m.get(key).getLength());
+                for (ChatMessageType key : testMessages.keySet()) {
+                    ChatLineBuffer buffer = client.getChatLineMap().get(key.getType());
+                    for (MessageNode node : testMessages.get(key)) buffer.removeMessageNode(node);
+                    testMessages.get(key).clear();
+                }
+                clientThread.invokeAtTickEnd(client::refreshChat);
+            } else if (command.equals("scrolltrace")) {
+                boolean on = scrollKeep.toggleTrace();
+                client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Chat Resizer scroll trace " + (on ? "ON" : "OFF"), null);
             }
         }
 

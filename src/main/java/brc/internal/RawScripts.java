@@ -7,10 +7,10 @@ public final class RawScripts {
     // cs2 [proc,on_mobile]: a helper the layout scripts call mid-refit, so its pre-fire is a relayout tripwire
     public static final int TOPLEVEL_RELAYOUT = 1972;
 
-    // Re-wraps chat lines and cleans up the background sprite at the current width, resizable layout only
+    // Resets the chatbox frame to stock (background, tab stones, buttons) then re-wraps; resizable one-shots only
     public static final int RESIZES_CHAT = 924;
 
-    // Re-wraps chat text at the current width
+    // Re-wraps chat text and rebuilds the PM box at current width, without 924's frame reset; the live-drag re-wrap
     public static final int REWRAPS_CHAT = 663;
 
     // onResize handler of a toplevel CONTROL widget: full in-engine UI re-fit without a real canvas resize

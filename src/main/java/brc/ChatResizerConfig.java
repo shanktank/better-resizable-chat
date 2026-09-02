@@ -1,5 +1,6 @@
 package brc;
 
+import brc.internal.ChatGeometry;
 import brc.internal.SizeClamps;
 import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
@@ -290,6 +291,57 @@ public interface ChatResizerConfig extends Config {
     )
     default Keybind secondaryKeybind() {
         return Keybind.NOT_SET;
+    }
+
+    // Small font settings
+
+    enum ChatIcons { NORMAL, SCALED, CROPPED }
+
+    String USE_SMALL_FONT = "useSmallFont";
+    String CHAT_IRONMAN_ICONS = "chatIronmanIcons";
+    String CHAT_LINE_HEIGHT = "chatLineHeight";
+
+    @ConfigSection(name = "Small font", description = "Use OSRS's smaller font for the chat box.", position = 500, closedByDefault = true)
+    String smallFontSection = "smallFont";
+
+    @ConfigItem(
+        position = 501,
+        keyName = USE_SMALL_FONT,
+        name = "Use small font",
+        description = "Draw chat messages in the game's smaller font (Plain 11) instead of the stock font (Plain 12).",
+        section = smallFontSection
+    )
+    default boolean useSmallFont() {
+        return false;
+    }
+
+    @ConfigItem(
+        position = 502,
+        keyName = CHAT_IRONMAN_ICONS,
+        name = "Ironman icons",
+        description = "Indicator icon in front of a helmie's name in chat."
+                    + "<br>&nbsp;&nbsp; - Normal: use the stock icons"
+                    + "<br>&nbsp;&nbsp; - Scaled: downscale the stock icons"
+                    + "<br>&nbsp;&nbsp; - Cropped: shave a little off the top"
+                    + "<br>Only applies when small font is enabled.",
+        section = smallFontSection
+    )
+    default ChatIcons chatIcons() {
+        return ChatIcons.SCALED;
+    }
+
+    @Range(min = ChatGeometry.MIN_LINE_PITCH, max = ChatGeometry.NORMAL_LINE_PITCH)
+    @Units(Units.PIXELS)
+    @ConfigItem(
+        position = 503,
+        keyName = CHAT_LINE_HEIGHT,
+        name = "Line height",
+        description = "Vertical space each line of chat text takes up."
+                    + "<br>Only applies when small font is enabled.",
+        section = smallFontSection
+    )
+    default int chatLineHeight() {
+        return ChatGeometry.SMALL_LINE_PITCH;
     }
 
     // Compatibility settings
