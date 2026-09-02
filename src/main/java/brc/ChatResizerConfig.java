@@ -297,28 +297,28 @@ public interface ChatResizerConfig extends Config {
     String NO_BORDERS = "noBorders";
     String NO_BACKGROUND_ZOOM = "noBackgroundZoom";
 
-    @ConfigSection(name = "Compatibility", description = "Play well with other plugins.", position = 500, closedByDefault = true)
+    @ConfigSection(name = "Compatibility", description = "Play well with other plugins.", position = 600, closedByDefault = true)
     String compatibilitySection = "compatibility";
 
     @ConfigItem(
-        position = 502,
-        keyName = NO_BORDERS,
-        name = "Don't draw borders",
-        description = "Don't draw the new border around chat. May be desirable if you use the Resource Packs plugin.",
-        section = compatibilitySection
-    )
-    default boolean noBorders() {
-        return false;
-    }
-
-    @ConfigItem(
-        position = 501,
+        position = 601,
         keyName = NO_BACKGROUND_ZOOM,
         name = "Don't zoom background",
         description = "Don't zoom in on the opaque chat's background. May be desirable if you use the Resource Packs plugin.",
         section = compatibilitySection
     )
     default boolean noBackgroundZoom() {
+        return false;
+    }
+
+    @ConfigItem(
+        position = 602,
+        keyName = NO_BORDERS,
+        name = "Don't draw borders",
+        description = "Don't draw the new border around chat. May be desirable if you use the Resource Packs plugin.",
+        section = compatibilitySection
+    )
+    default boolean noBorders() {
         return false;
     }
 }

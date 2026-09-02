@@ -374,8 +374,7 @@ public class ChatResizerPlugin extends Plugin {
             if (dragging) {
                 if (!wasDragging) fixedChat.setCollapsed(false); // Drag writes config height, which collapse would override
                 Dimension size = apply(false), last = dragResizeActuator.getLastDragSize();
-                if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last))
-                    client.runScript(RawScripts.RESIZES_CHAT); // Re-wrap text and move PM split
+                if (client.isResized() && config.liveRewrap() && size != null && !size.equals(last)) client.refreshChat();
                 dragResizeActuator.setLastDragSize(size);
             } else {
                 adoptConfigEdits(); // Ahead of this frame's apply, or chat adopts the edit a frame before interfaces re-fit to it
