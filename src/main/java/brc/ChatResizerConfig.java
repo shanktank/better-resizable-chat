@@ -140,6 +140,7 @@ public interface ChatResizerConfig extends Config {
     String REVERT_FOR_DIALOGS = "revertForDialogs";
     String REVERT_FOR_MODALS = "revertForModals";
     String TOGGLE_SHOW_CHAT = "toggleShowChat";
+    String INPUT_LEN_INDICATOR = "inputLengthIndicator";
 
     @ConfigSection(name = "Both layouts", description = "Settings common to both layouts.", position = 200)
     String bothLayoutsSection = "bothLayouts";
@@ -182,6 +183,17 @@ public interface ChatResizerConfig extends Config {
     )
     default Keybind toggleShowChat() {
         return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+        position = 204,
+        keyName = INPUT_LEN_INDICATOR,
+        name = "Input length indicator",
+        description = "Add typed/max counter to chat input.",
+        section = bothLayoutsSection
+    )
+    default boolean inputLenIndicator() {
+        return false;
     }
 
     // Drag-resize settings
