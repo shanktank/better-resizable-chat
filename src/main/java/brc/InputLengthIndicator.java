@@ -16,7 +16,7 @@ import java.awt.Color;
 // and both layouts are covered by the one attachment. It draws a size below the line it sits on, in the chat's own
 // small font, and takes its shadow from that line so a transparency swap or a sprite pack carries over for free.
 @Singleton
-public class InputCharCounter {
+public class InputLengthIndicator {
     private static final int MAX_CHARS = 80;
     private static final int FONT = FontID.PLAIN_11;
     private static final int COLOR = Color.DARK_GRAY.getRGB();
@@ -33,7 +33,7 @@ public class InputCharCounter {
     private int textW; // Width the current text measured, which the placement right-aligns against
 
     @Inject
-    InputCharCounter(Client client, ChatResizerConfig config) {
+    InputLengthIndicator(Client client, ChatResizerConfig config) {
         this.client = client;
         this.config = config;
     }
@@ -48,8 +48,7 @@ public class InputCharCounter {
         Widget input = client.getWidget(InterfaceID.Chatbox.INPUT);
         Widget parent = input == null ? null : input.getParent();
         if (parent == null) { // Chatbox not live (login, hop, layout swap): our child went with it, so drop the tracking
-            counter = null;
-            host = null;
+            counter = host = null;
             return;
         }
 

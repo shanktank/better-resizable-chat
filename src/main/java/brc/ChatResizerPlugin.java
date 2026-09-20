@@ -61,7 +61,7 @@ public class ChatResizerPlugin extends Plugin {
     @Inject private ResizableModeChat resizable;
     @Inject private ChatScrollRetainer scrollKeep;
     @Inject private RuneLiteChatInput rlInput;
-    @Inject private InputCharCounter charCounter;
+    @Inject private InputLengthIndicator inputIndicator;
     @Inject private SecondarySize swapSize;
     @Inject private DragResizeActuator dragResizeActuator;
     @Inject private DragResizePreview dragResizePreview;
@@ -123,7 +123,7 @@ public class ChatResizerPlugin extends Plugin {
             }
             if (dialogModals.isDialogOpen()) dialogModals.resetDialogPositions(); // Must reset position of open dialog
             rlInput.refit(); // Frame loop is off by now, so re-center an open input prompt on the restored width here
-            charCounter.destroy(); // Take our count widget back out; the chatbox is the engine's again
+            inputIndicator.destroy(); // Take our count widget back out; the chatbox is the engine's again
             scrollKeep.sync();
         });
     }
@@ -405,7 +405,7 @@ public class ChatResizerPlugin extends Plugin {
             }
 
             rlInput.refit(); // Re-center an open RuneLite input prompt if this frame moved the width out from under it
-            charCounter.sync(); // Re-place the typed-character count on the input line this frame settled at
+            inputIndicator.sync(); // Re-place the typed-character count on the input line this frame settled at
             scrollKeep.sync(); // Single preservation here
 
             // Publish the current chat rectangle, layout and window-derived size ceilings for resize band management
